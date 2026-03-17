@@ -91,7 +91,7 @@ Implement the full schema from the spec (high-level entities):
 
 ## Suggested tech stack (matches spec)
 - Next.js (App Router) + TypeScript (strict)
-- Postgres + Prisma
+- SQLite (local dev) + Prisma
 - Tailwind + shadcn/ui
 - Recharts for charts
 - js-yaml + papaparse for parsing
@@ -104,7 +104,7 @@ flowchart LR
   teamUser[TeamUser] --> web[WebApp]
   analystUser[AnalystUser] --> web
   web --> api[API]
-  api --> db[(Postgres)]
+  api --> db[(Database)]
   ingest[IngestionJobs] --> db
   ingest --> provider[CricsheetProvider]
   api --> predict[PredictionService]

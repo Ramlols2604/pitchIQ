@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "node prisma/seed.mjs"
+    "db:seed": "node --env-file .env prisma/seed.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

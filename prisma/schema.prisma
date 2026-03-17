@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -71,7 +71,7 @@ model Venue {
   city               String
   country            String   @default("India")
   capacityApprox     Int?
-  pitchTags          String[] // ["dry", "flat", "turner", "green_top"]
+  pitchTags          Json? // ["dry", "flat", "turner", "green_top"]
   boundaryAvgMeters  Float? // proxy for boundary size
   dewFactor          Float    @default(0.5) // 0=never dew, 1=always dew
   homeAdvantageNotes String?

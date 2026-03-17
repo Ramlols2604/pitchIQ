@@ -7,7 +7,7 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 ## Timeline / progress
 - **Step 1 (done)**: repo initialized + MVP plan added (`PITCHIQ_MVP_PLAN.md`)
 - **Step 2 (done)**: Next.js (TS/App Router/Tailwind/ESLint) scaffold
-- **Step 3 (done)**: Prisma + Postgres foundation + full schema in `prisma/schema.prisma`
+- **Step 3 (done)**: Prisma foundation + full schema in `prisma/schema.prisma`
 - **Step 4 (done)**: Magic-link auth API (minimal) + session cookie
   - `POST /api/auth/magic-link`
   - `GET /api/auth/verify?token=...`
@@ -26,32 +26,20 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 
 ## Local dev (DB + migrate + seed)
 
-1) Create `.env` (do not commit) with a Postgres URL:
+1) Create `.env` (do not commit):
 
 ```bash
 cp .env.example .env
 ```
 
-2) Get Postgres
-
-- Homebrew (macOS):
-
-```bash
-brew install postgresql@16
-brew services start postgresql@16
-createdb pitchiq
-```
-
-- Or use hosted Postgres (Supabase/Neon/Railway) and set `DATABASE_URL` in `.env`.
-
-3) Migrate + seed
+2) Migrate + seed (SQLite `dev.db`)
 
 ```bash
 npx prisma migrate dev --name init
 npm run db:seed
 ```
 
-4) Run the app
+3) Run the app
 
 ```bash
 npm run dev
