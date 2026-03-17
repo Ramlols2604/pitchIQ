@@ -25,10 +25,22 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 8 (done)**: Team page skeleton + season switcher
   - `/teams/[teamId]` requires session (tenant-gated for `TEAM_USER`)
   - season switcher stored in `localStorage` (`pitchiq_season`)
+- **Step 9 (done)**: Season-scoped squad table + player panel
+  - squad loaded from `SquadMembership` (seasonId + teamId)
+  - availability overlay from `PlayerAvailability`
+- **Step 10 (done)**: Edit availability + notes (TeamUser-only)
+  - `PUT /api/teams/:teamId/players/:playerId/availability`
+  - `PUT /api/teams/:teamId/players/:playerId/notes`
+- **Step 11 (done)**: Matches + match context setup (no prediction yet)
+  - `/matches`
+  - `/matches/[matchId]/setup`
+  - `GET /api/matches?teamId=&seasonId=`
+  - `PUT /api/matches/:matchId/context`
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
-- **Teams**: season-scoped squad table + player side panel
+- **Matches**: create match records (admin/ingest) so `/matches` lists something
+- **Prediction**: `POST /api/matches/:matchId/predicted-xi`
 
 ## Local dev (DB + migrate + seed)
 

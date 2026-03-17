@@ -33,6 +33,11 @@ export default async function DashboardPage() {
               </li>
             ) : null}
             <li>
+              <Link className="underline" href="/matches">
+                Matches
+              </Link>
+            </li>
+            <li>
               <Link className="underline" href="/auth/login">
                 Login
               </Link>
