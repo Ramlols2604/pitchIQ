@@ -5,3 +5,401 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ─── Tenancy & Auth ───────────────────────────────────────────────────────────
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+  teams Team[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  role         UserRole
+  tenantId     String?
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+  inviteToken  String?   @unique
+  inviteExpiry DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  sessions Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  LEAGUE_ADMIN
+  TEAM_USER
+  ANALYST_USER
+}
+
+// ─── League Structure ─────────────────────────────────────────────────────────
+model Season {
+  id         String    @id @default(cuid())
+  year       Int       @unique
+  name       String // e.g. "IPL 2026"
+  leagueName String    @default("IPL")
+  isActive   Boolean   @default(false)
+  startDate  DateTime?
+  endDate    DateTime?
+  createdAt  DateTime  @default(now())
+
+  matches Match[]
+  squads  SquadMembership[]
+  facts   PerformanceFact[]
+}
+
+model Venue {
+  id                 String   @id @default(cuid())
+  name               String
+  city               String
+  country            String   @default("India")
+  capacityApprox     Int?
+  pitchTags          String[] // ["dry", "flat", "turner", "green_top"]
+  boundaryAvgMeters  Float? // proxy for boundary size
+  dewFactor          Float    @default(0.5) // 0=never dew, 1=always dew
+  homeAdvantageNotes String?
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime @default(now())
+
+  matches Match[]
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  displayName  String
+  shortCode    String   @unique // e.g. "MI", "CSK"
+  primaryColor String?
+  logoUrl      String?
+  city         String?
+  createdAt    DateTime @default(now())
+
+  squads      SquadMembership[]
+  homeMatches Match[]           @relation("HomeTeam")
+  awayMatches Match[]           @relation("AwayTeam")
+}
+
+// ─── Player & Squad ───────────────────────────────────────────────────────────
+model Player {
+  id           String       @id @default(cuid())
+  cricsheetId  String?      @unique
+  espnId       String?
+  name         String
+  fullName     String?
+  dob          DateTime?
+  nationality  String       @default("India")
+  isOverseas   Boolean      @default(false)
+  battingStyle BattingStyle
+  bowlingStyle BowlingStyle
+  primaryRole  PlayerRole
+  fieldingRole FieldingRole @default(OUTFIELDER)
+  imageUrl     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  squadMemberships SquadMembership[]
+  availabilities   PlayerAvailability[]
+  performanceFacts PerformanceFact[]
+}
+
+enum BattingStyle {
+  RIGHT_HAND
+  LEFT_HAND
+}
+
+enum BowlingStyle {
+  RIGHT_ARM_FAST
+  RIGHT_ARM_MEDIUM_FAST
+  RIGHT_ARM_MEDIUM
+  RIGHT_ARM_OFF_SPIN
+  RIGHT_ARM_LEG_SPIN
+  LEFT_ARM_FAST
+  LEFT_ARM_MEDIUM
+  LEFT_ARM_ORTHODOX
+  LEFT_ARM_WRIST_SPIN
+  NONE
+}
+
+enum PlayerRole {
+  OPENER
+  TOP_ORDER
+  MIDDLE_ORDER
+  FINISHER
+  ALL_ROUNDER
+  WICKET_KEEPER
+  BOWLING_ALL_ROUNDER
+  SPECIALIST_BOWLER
+}
+
+enum FieldingRole {
+  WICKET_KEEPER
+  OUTFIELDER
+  SPECIALIST_SLIP
+}
+
+model SquadMembership {
+  id       String @id @default(cuid())
+  seasonId String
+  teamId   String
+  playerId String
+  season   Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  contractType String?
+  basePrice    Float?
+  soldPrice    Float?
+  isRetained   Boolean   @default(false)
+  squadNumber  Int?
+  joinedDate   DateTime?
+  leftDate     DateTime?
+  notes        String? // tenant-private notes (updated via API)
+
+  @@unique([seasonId, teamId, playerId])
+}
+
+model PlayerAvailability {
+  id              String             @id @default(cuid())
+  seasonId        String
+  teamId          String
+  playerId        String
+  player          Player             @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  status          AvailabilityStatus @default(AVAILABLE)
+  injuryNote      String?
+  workloadFlag    WorkloadFlag       @default(NORMAL)
+  availableFrom   DateTime?
+  lastUpdated     DateTime           @updatedAt
+  updatedByUserId String?
+
+  @@unique([seasonId, teamId, playerId])
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  DOUBTFUL
+  INJURED
+  RESTED
+  SUSPENDED
+  UNAVAILABLE
+}
+
+enum WorkloadFlag {
+  NORMAL
+  HIGH
+  MANAGED
+}
+
+// ─── Match & Context ──────────────────────────────────────────────────────────
+model Match {
+  id           String        @id @default(cuid())
+  seasonId     String
+  season       Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  venueId      String
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  teamAId      String
+  teamBId      String
+  teamA        Team          @relation("HomeTeam", fields: [teamAId], references: [id])
+  teamB        Team          @relation("AwayTeam", fields: [teamBId], references: [id])
+  dateTime     DateTime
+  matchNumber  Int?
+  phase        MatchPhase    @default(GROUP)
+  result       String?
+  winnerTeamId String?
+  tossWinnerId String?
+  tossDecision TossDecision?
+  isComplete   Boolean       @default(false)
+  cricsheetId  String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  context   MatchContext?
+  modelRuns ModelRun[]
+
+  @@index([seasonId, dateTime])
+  @@index([teamAId, teamBId])
+  @@index([venueId])
+}
+
+enum MatchPhase {
+  GROUP
+  QUALIFIER_1
+  ELIMINATOR
+  QUALIFIER_2
+  FINAL
+}
+
+enum TossDecision {
+  BAT
+  FIELD
+}
+
+model MatchContext {
+  id               String         @id @default(cuid())
+  matchId          String         @unique
+  match            Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  pitchType        PitchType      @default(FLAT)
+  pitchCondition   PitchCondition @default(FRESH)
+  weatherCondition WeatherType    @default(CLEAR)
+  dewLikelihood    DewLevel       @default(LOW)
+  boundaryOverride Float?
+  pressureTag      PressureTag    @default(NORMAL)
+  homeAdvantage    Boolean        @default(false)
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+enum PitchType {
+  FLAT
+  SPIN_FRIENDLY
+  PACE_FRIENDLY
+  WET
+  DRY
+}
+
+enum PitchCondition {
+  FRESH
+  USED
+  WORN
+}
+
+enum WeatherType {
+  CLEAR
+  OVERCAST
+  HUMID
+  HOT
+  DRY_HEAT
+}
+
+enum DewLevel {
+  NONE
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum PressureTag {
+  NORMAL
+  MUST_WIN
+  KNOCKOUT
+  DEAD_RUBBER
+}
+
+// ─── Performance Analytics (public derived) ───────────────────────────────────
+model PerformanceFact {
+  id             String  @id @default(cuid())
+  playerId       String
+  player         Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  seasonId       String?
+  season         Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  teamId         String?
+  venueId        String?
+  opposingTeamId String?
+
+  // Batting
+  inningsBatted Int    @default(0)
+  runs          Int    @default(0)
+  ballsFaced    Int    @default(0)
+  battingAvg    Float?
+  strikeRate    Float?
+  fifties       Int    @default(0)
+  hundreds      Int    @default(0)
+  dotBallPct    Float?
+
+  // Bowling
+  inningsBowled     Int    @default(0)
+  wickets           Int    @default(0)
+  oversBowled       Float  @default(0)
+  runsConceded      Int    @default(0)
+  economy           Float?
+  bowlingAvg        Float?
+  bowlingStrikeRate Float?
+
+  // Splits
+  phase           GamePhase?
+  battingVsPace   Float?
+  battingVsSpin   Float?
+  recentFormScore Float?
+
+  factType   FactType @default(CAREER)
+  computedAt DateTime @default(now())
+
+  @@index([playerId, seasonId])
+  @@index([playerId, venueId])
+  @@index([playerId, opposingTeamId])
+}
+
+enum GamePhase {
+  POWERPLAY
+  MIDDLE
+  DEATH
+  FULL
+}
+
+enum FactType {
+  CAREER
+  SEASON
+  VENUE
+  MATCHUP
+  RECENT_FORM
+}
+
+// ─── Prediction Engine ─────────────────────────────────────────────────────────
+model ModelRun {
+  id                String @id @default(cuid())
+  matchId           String
+  match             Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  tenantId          String
+  triggeredByUserId String
+  modelVersion      String @default("rules_v1")
+
+  predictedXI     Json
+  bench           Json
+  constraintLog   Json
+  featureWeights  Json
+  collapseRisk    Float?
+  collapseFactors Json?
+  createdAt       DateTime @default(now())
+
+  @@index([matchId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+// ─── Data Ingestion Tracking ──────────────────────────────────────────────────
+model IngestionJob {
+  id            String    @id @default(cuid())
+  provider      String    @default("cricsheet")
+  seasonYear    Int
+  status        JobStatus @default(PENDING)
+  totalRecords  Int?
+  processedRecs Int?
+  errorLog      String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
