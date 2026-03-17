@@ -22,10 +22,13 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 7 (done)**: Role-gated dashboard route
   - `/dashboard` requires session
   - `/` redirects to `/dashboard` when logged in
+- **Step 8 (done)**: Team page skeleton + season switcher
+  - `/teams/[teamId]` requires session (tenant-gated for `TEAM_USER`)
+  - season switcher stored in `localStorage` (`pitchiq_season`)
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
-- **Teams**: `/teams/[teamId]` skeleton + season switcher
+- **Teams**: season-scoped squad table + player side panel
 
 ## Local dev (DB + migrate + seed)
 
