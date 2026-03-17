@@ -19,10 +19,13 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 6 (done)**: Seed + home redirect gate
   - `prisma/seed.mjs` + `npm run db:seed`
   - `/` redirects to `/auth/login` when logged out
+- **Step 7 (done)**: Role-gated dashboard route
+  - `/dashboard` requires session
+  - `/` redirects to `/dashboard` when logged in
 
 ## Next up
-- **DB migrate**: run the first migration and seed a local database
-- **Dashboard**: role-based landing (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
+- **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
+- **Teams**: `/teams/[teamId]` skeleton + season switcher
 
 ## Local dev (DB + migrate + seed)
 
