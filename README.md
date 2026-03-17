@@ -16,10 +16,13 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 5 (done)**: Auth UI + admin invite endpoint
   - `/auth/login`
   - `POST /api/admin/users/invite`
+- **Step 6 (done)**: Seed + home redirect gate
+  - `prisma/seed.mjs` + `npm run db:seed`
+  - `/` redirects to `/auth/login` when logged out
 
 ## Next up
-- **Seed**: minimal seed script for a demo tenant/team/user
-- **Redirects**: route `/` to `/auth/login` vs app based on session
+- **DB migrate**: run the first migration and seed a local database
+- **Dashboard**: role-based landing (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
 
 ## Repo contents (MVP)
 - `PITCHIQ_MVP_PLAN.md`: implementation plan/spec for the MVP build.
