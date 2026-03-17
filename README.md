@@ -65,6 +65,21 @@ npm run dev
 
 Then open `/auth/login` and sign in with the `SEED_ADMIN_EMAIL`.
 
+## Create a match (API-only)
+
+```bash
+curl -X POST "http://localhost:3000/api/admin/matches" \
+  -H "content-type: application/json" \
+  -d '{
+    "seasonYear": 2026,
+    "dateTime": "2026-03-17T19:30:00+05:30",
+    "teamAShortCode": "DEM",
+    "teamBShortCode": "DEM",
+    "venue": { "name": "Wankhede Stadium", "city": "Mumbai" },
+    "matchNumber": 1
+  }'
+```
+
 ## Repo contents (MVP)
 - `PITCHIQ_MVP_PLAN.md`: implementation plan/spec for the MVP build.
 
