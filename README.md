@@ -13,11 +13,13 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - `GET /api/auth/verify?token=...`
   - `GET /api/auth/me`
   - `POST /api/auth/logout`
+- **Step 5 (done)**: Auth UI + admin invite endpoint
+  - `/auth/login`
+  - `POST /api/admin/users/invite`
 
 ## Next up
-- **Auth UI**: `/auth/login` page (email input) + basic redirect handling
-- **Invites**: `POST /api/admin/users/invite` (LeagueAdmin)
 - **Seed**: minimal seed script for a demo tenant/team/user
+- **Redirects**: route `/` to `/auth/login` vs app based on session
 
 ## Repo contents (MVP)
 - `PITCHIQ_MVP_PLAN.md`: implementation plan/spec for the MVP build.
