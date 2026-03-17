@@ -24,6 +24,41 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **DB migrate**: run the first migration and seed a local database
 - **Dashboard**: role-based landing (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
 
+## Local dev (DB + migrate + seed)
+
+1) Create `.env` (do not commit) with a Postgres URL:
+
+```bash
+cp .env.example .env
+```
+
+2) Get Postgres
+
+- Homebrew (macOS):
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createdb pitchiq
+```
+
+- Or use hosted Postgres (Supabase/Neon/Railway) and set `DATABASE_URL` in `.env`.
+
+3) Migrate + seed
+
+```bash
+npx prisma migrate dev --name init
+npm run db:seed
+```
+
+4) Run the app
+
+```bash
+npm run dev
+```
+
+Then open `/auth/login` and sign in with the `SEED_ADMIN_EMAIL`.
+
 ## Repo contents (MVP)
 - `PITCHIQ_MVP_PLAN.md`: implementation plan/spec for the MVP build.
 
