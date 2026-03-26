@@ -87,11 +87,17 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 25 (done)**: Analytics CSV export
   - added `GET /api/analytics/collapse/export` for filtered run exports
   - added Download CSV action on collapse analytics filters
+- **Step 26 (done)**: Profile default-landing overrides
+  - added `GET /api/dashboard/default-landing` to persist per-role landing choice in cookie
+  - profile settings now include explicit landing override actions
+- **Step 27 (done)**: Scheduled export scaffold
+  - added `/api/analytics/collapse/schedules` (GET/POST scaffold responses)
+  - linked analytics view to schedules API scaffold entrypoint
 
 ## Next up
 - **Prediction**: tune calibration with real match outcomes
-- **Analytics**: add richer report formats and scheduled exports
-- **Dashboard**: support per-role default landing override in profile
+- **Analytics**: persist schedules and run background delivery jobs
+- **Dashboard**: migrate cookie preferences to user-profile persistence
 
 ## Local dev
 

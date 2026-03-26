@@ -125,6 +125,12 @@ export default async function CollapseAnalyticsPage({
               </div>
             </div>
           </form>
+          <div className="mt-3 text-xs text-zinc-600">
+            Scheduled export scaffold:{" "}
+            <a className="underline" href="/api/analytics/collapse/schedules">
+              view schedules API
+            </a>
+          </div>
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-sm">

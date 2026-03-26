@@ -16,6 +16,7 @@ export default async function DashboardPage({
   const sp = await searchParams;
   const cookieStore = await cookies();
   const prefAuto = cookieStore.get("pitchiq_dashboard_auto")?.value === "1";
+  const prefDefault = cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
@@ -41,9 +42,18 @@ export default async function DashboardPage({
       : auth.role === "TEAM_USER"
         ? (team ? `/teams/${team.id}` : "/matches")
         : "/matches";
+  const allowedDefaults = new Set(
+    auth.role === "ANALYST_USER"
+      ? ["/analytics/collapse", "/matches"]
+      : auth.role === "TEAM_USER"
+        ? ["/matches", ...(team ? [`/teams/${team.id}`] : [])]
+        : ["/matches", "/matches/create", "/analytics/collapse"]
+  );
+  const landing =
+    prefDefault && allowedDefaults.has(prefDefault) ? prefDefault : defaultLanding;
 
   if (sp.auto === "1" || (prefAuto && sp.auto !== "0")) {
-    redirect(defaultLanding);
+    redirect(landing);
   }
 
   return (
