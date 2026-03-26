@@ -79,6 +79,12 @@ export default async function CollapseAnalyticsPage({
         <div className="rounded-xl bg-white p-6 shadow-sm">
           <div className="text-sm font-medium">Collapse analytics</div>
           <div className="mt-1 text-sm text-zinc-600">League/analyst view from latest model runs.</div>
+          <div className="mt-2 text-xs text-zinc-600">
+            Calibration diagnostics:{" "}
+            <a className="underline" href="/analytics/calibration">
+              open calibration report
+            </a>
+          </div>
           <form className="mt-4 grid gap-3 md:grid-cols-3">
             <label className="text-sm">
               <div className="text-xs text-zinc-600">Season</div>

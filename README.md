@@ -101,10 +101,17 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - moved schedules API to persisted `ScheduledExport` reads/writes (with SQL scaffold)
   - added runner stub endpoint `/api/analytics/collapse/schedules/run`
   - added SQL scaffold `supabase/sql/20260318_scheduled_exports.sql`
+- **Step 30 (done)**: Scheduled delivery integration hooks
+  - runner now attempts webhook delivery via `SCHEDULED_EXPORT_WEBHOOK_URL`
+  - successful runs advance schedule window; failures retain due status for retry
+  - added run-log SQL scaffold `supabase/sql/20260318_scheduled_export_runs.sql`
+- **Step 31 (done)**: Calibration diagnostics report
+  - added `/analytics/calibration` with adjustment summaries and recent run table
+  - linked collapse analytics page to calibration report
 
 ## Next up
-- **Prediction**: tune calibration with real match outcomes
-- **Analytics**: wire scheduled delivery worker and email integration
+- **Prediction**: add real match-outcome labeling for calibration accuracy metrics
+- **Analytics**: wire delivery webhook to actual email provider workflow
 - **Dashboard**: migrate cookie preferences to user-profile persistence
 
 ## Local dev

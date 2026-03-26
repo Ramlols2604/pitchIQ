@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const q = supabase
     .from("ScheduledExport")
-    .select("id,seasonId,teamId,format,cadence,destinationEmail,status,nextRunAt,createdAt")
+    .select("id,seasonId,teamId,format,cadence,destinationEmail,status,nextRunAt,lastRunAt,createdAt")
     .order("createdAt", { ascending: false })
     .limit(50);
   if (auth.tenantId) q.eq("tenantId", auth.tenantId);
