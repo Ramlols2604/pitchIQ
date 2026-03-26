@@ -67,11 +67,14 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 19 (done)**: Optional dashboard auto-redirect presets
   - `/dashboard?auto=1` now redirects each role to a default landing page
   - default targets: team workspace or matches (`TEAM_USER`), analytics (`ANALYST_USER`), matches (`LEAGUE_ADMIN`)
+- **Step 20 (done)**: Analytics factor drill-down
+  - collapse table now shows model version, role-mix, matchup context, and top factors
+  - uses `collapseFactors` when present, with explainable fallback from `featureWeights`
 
 ## Next up
-- **Analytics**: enrich collapse view with deeper factor drill-downs
 - **Prediction**: calibrate weights with match outcome backtesting
 - **Dashboard**: optional persisted redirect preference (cookie/profile setting)
+- **Analytics**: add row-level expanders and trend charting
 
 ## Local dev
 
