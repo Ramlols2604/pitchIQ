@@ -116,9 +116,12 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added `UserPreference` helper + SQL scaffold
   - dashboard/profile now read persisted preferences with cookie fallback
   - preference API routes now upsert user-scoped settings
+- **Step 34 (done)**: Match-outcome labeling + calibration accuracy metrics
+  - added `MatchOutcome` SQL scaffold and labeling API endpoint
+  - calibration diagnostics now includes labeled outcome coverage and Brier score
+  - recent runs table now shows actual labeled result for quick audit
 
 ## Next up
-- **Prediction**: add real match-outcome labeling for calibration accuracy metrics
 - **Analytics**: integrate webhook receiver with real email provider workflow
 - **Preferences**: migrate fully from cookie fallback to DB-only after rollout
 
