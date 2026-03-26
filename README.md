@@ -128,9 +128,11 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - removed cookie fallback reads from dashboard and profile settings pages
   - preference mutation routes now persist only to `UserPreference`
   - prediction calibration now reads per-user values from DB preferences
+- **Step 37 (done)**: Resend email integration for scheduled exports
+  - scheduled-export receiver now sends emails via Resend when enabled
+  - added env toggle + sender/key config in `.env.example`
 
 ## Next up
-- **Analytics**: replace receiver skeleton with real email provider integration
 - **Prediction**: add automated outcome backfill from match scorecards
 
 ## Local dev

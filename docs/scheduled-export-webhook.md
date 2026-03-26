@@ -28,8 +28,11 @@ When `/api/analytics/collapse/schedules/run` processes due jobs, it emits a webh
 - Compute `HMAC_SHA256(secret, rawBody)` and compare with `x-pitchiq-signature`.
 - If secret is not configured, signature may be empty.
 
-## Receiver Skeleton
+## Receiver Implementation
 - Example receiver/provider-adapter endpoint:
   - `POST /api/integrations/email-provider/scheduled-export`
-- It validates contract version + signature and returns an accepted response.
-- Replace the placeholder response with your real email provider API call.
+- It validates contract version + signature.
+- If `SCHEDULED_EXPORT_EMAIL_PROVIDER=resend`, it sends the email via Resend using:
+  - `RESEND_API_KEY`
+  - `SCHEDULED_EXPORT_EMAIL_FROM`
+- If provider is `disabled`, it returns `503` so the scheduler can retry until configured.
