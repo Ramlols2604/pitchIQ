@@ -63,6 +63,16 @@ export async function PUT(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const { data: membership, error: membershipErr } = await supabase
+    .from("SquadMembership")
+    .select("id")
+    .eq("seasonId", seasonId)
+    .eq("teamId", teamId)
+    .eq("playerId", playerId)
+    .maybeSingle<{ id: string }>();
+  if (membershipErr) return NextResponse.json({ error: "Failed to validate squad row" }, { status: 500 });
+  if (!membership) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { data: row, error: upsertErr } = await supabase
     .from("PlayerAvailability")
     .upsert(

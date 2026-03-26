@@ -7,7 +7,7 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 ## Timeline / progress
 - **Step 1 (done)**: repo initialized + MVP plan added (`PITCHIQ_MVP_PLAN.md`)
 - **Step 2 (done)**: Next.js (TS/App Router/Tailwind/ESLint) scaffold
-- **Step 3 (done)**: Prisma foundation + full schema in `prisma/schema.prisma`
+- **Step 3 (done)**: Initial schema foundation (later migrated fully to Supabase)
 - **Step 4 (done)**: Magic-link auth API (minimal) + session cookie
   - `POST /api/auth/magic-link`
   - `GET /api/auth/verify?token=...`
@@ -17,7 +17,7 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - `/auth/login`
   - `POST /api/admin/users/invite`
 - **Step 6 (done)**: Seed + home redirect gate
-  - `prisma/seed.mjs` + `npm run db:seed`
+  - initial local seed flow (later removed with Prisma cleanup)
   - `/` redirects to `/auth/login` when logged out
 - **Step 7 (done)**: Role-gated dashboard route
   - `/dashboard` requires session
@@ -49,13 +49,18 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - constraints: min wicketkeeper, bowling balance target, availability filtering
   - caps: overseas preference with fallback fill
   - weighted scoring + per-player explanations shown on predicted XI page
+- **Step 15 (done)**: Supabase-only cleanup + analytics + prediction v2
+  - removed remaining Prisma runtime paths and files
+  - added `/analytics/collapse` analyst view skeleton with filters
+  - upgraded XI engine to `rules_v2` with match context/toss-aware scoring
+  - hardened team write APIs with squad membership checks
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
 - **Matches**: create match records (admin/ingest) so `/matches` lists something
-- **Prediction**: refine role quotas + opposition/context-aware scoring
+- **Prediction**: add opposition-specific matchup weights + role quotas by venue profile
 
-## Local dev (DB + migrate + seed)
+## Local dev
 
 1) Create `.env` (do not commit):
 
@@ -63,12 +68,7 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 cp .env.example .env
 ```
 
-2) Migrate + seed (SQLite `dev.db`)
-
-```bash
-npx prisma migrate dev --name init
-npm run db:seed
-```
+2) Configure Supabase env values (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) in `.env`
 
 3) Run the app
 

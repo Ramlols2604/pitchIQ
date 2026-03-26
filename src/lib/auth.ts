@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import crypto from "node:crypto";
 
-import { db } from "@/db";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export type AuthContext = {
   userId: string;
@@ -23,11 +23,17 @@ export async function getAuth(req?: NextRequest): Promise<AuthContext | null> {
     : (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
 
-  const session = await db.session.findUnique({
-    where: { token },
-    include: { user: true },
-  });
-  if (!session || session.expiresAt < new Date()) return null;
+  const supabase = getSupabaseAdmin();
+  const { data: session, error } = await supabase
+    .from("Session")
+    .select("userId,expiresAt,user:User!Session_userId_fkey(id,email,role,tenantId)")
+    .eq("token", token)
+    .maybeSingle<{
+      userId: string;
+      expiresAt: string;
+      user: { id: string; email: string; role: AuthContext["role"]; tenantId: string | null } | null;
+    }>();
+  if (error || !session || !session.user || new Date(session.expiresAt) < new Date()) return null;
 
   return {
     userId: session.user.id,

@@ -1,16 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { db } from "@/db";
 import { getAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export default async function DashboardPage() {
   const auth = await getAuth();
   if (!auth) redirect("/auth/login");
+  const supabase = getSupabaseAdmin();
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
-      ? await db.team.findFirst({ where: { tenantId: auth.tenantId } })
+      ? (
+          await supabase
+            .from("Team")
+            .select("id")
+            .eq("tenantId", auth.tenantId)
+            .limit(1)
+            .maybeSingle<{ id: string }>()
+        ).data
       : null;
 
   return (
@@ -35,6 +43,11 @@ export default async function DashboardPage() {
             <li>
               <Link className="underline" href="/matches">
                 Matches
+              </Link>
+            </li>
+            <li>
+              <Link className="underline" href="/analytics/collapse">
+                Analyst collapse view
               </Link>
             </li>
             <li>

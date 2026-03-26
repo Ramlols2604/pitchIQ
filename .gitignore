@@ -19,7 +19,6 @@
 
 # local sqlite db
 /dev.db
-/prisma/dev.db
 
 # production
 /build

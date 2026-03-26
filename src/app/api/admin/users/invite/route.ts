@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { db } from "@/db";
 import { newToken, requireAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 const INVITE_EXPIRY_DAYS = Number(process.env.INVITE_EXPIRY_DAYS ?? 7);
 
@@ -27,12 +27,23 @@ export async function POST(req: NextRequest) {
 
   const inviteToken = newToken();
   const inviteExpiry = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  const supabase = getSupabaseAdmin();
 
-  const user = await db.user.upsert({
-    where: { email },
-    update: { role, tenantId, inviteToken, inviteExpiry },
-    create: { email, role, tenantId, inviteToken, inviteExpiry },
-  });
+  const { data: user, error: userErr } = await supabase
+    .from("User")
+    .upsert(
+      {
+        email,
+        role,
+        tenantId,
+        inviteToken,
+        inviteExpiry: inviteExpiry.toISOString(),
+      },
+      { onConflict: "email" }
+    )
+    .select("id")
+    .single<{ id: string }>();
+  if (userErr) return NextResponse.json({ error: `Failed to upsert user: ${userErr.message}` }, { status: 500 });
 
   return NextResponse.json({
     ok: true,

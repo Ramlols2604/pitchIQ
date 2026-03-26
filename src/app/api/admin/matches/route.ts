@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { db } from "@/db";
 import { requireAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const supabase = getSupabaseAdmin();
   const body = (await req.json().catch(() => null)) as
     | {
         seasonYear?: number;
@@ -40,38 +41,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const [teamA, teamB] = await Promise.all([
-    db.team.findUnique({ where: { shortCode: teamAShortCode } }),
-    db.team.findUnique({ where: { shortCode: teamBShortCode } }),
+  const [{ data: teamA }, { data: teamB }] = await Promise.all([
+    supabase.from("Team").select("id").eq("shortCode", teamAShortCode).maybeSingle<{ id: string }>(),
+    supabase.from("Team").select("id").eq("shortCode", teamBShortCode).maybeSingle<{ id: string }>(),
   ]);
   if (!teamA || !teamB) return NextResponse.json({ error: "Team not found" }, { status: 404 });
 
-  const season = await db.season.upsert({
-    where: { year: seasonYear },
-    update: {},
-    create: { year: seasonYear, name: `IPL ${seasonYear}`, leagueName: "IPL" },
-  });
+  const { data: season, error: seasonErr } = await supabase
+    .from("Season")
+    .upsert(
+      { year: seasonYear, name: `IPL ${seasonYear}`, leagueName: "IPL" },
+      { onConflict: "year" }
+    )
+    .select("id")
+    .single<{ id: string }>();
+  if (seasonErr) return NextResponse.json({ error: `Failed to upsert season: ${seasonErr.message}` }, { status: 500 });
 
-  const existingVenue = await db.venue.findFirst({
-    where: { name: venueName, city: venueCity },
-  });
-  const venue =
-    existingVenue ??
-    (await db.venue.create({
-      data: { name: venueName, city: venueCity },
-    }));
+  const { data: venue, error: venueErr } = await supabase
+    .from("Venue")
+    .upsert({ name: venueName, city: venueCity }, { onConflict: "name,city" })
+    .select("id")
+    .single<{ id: string }>();
+  if (venueErr) return NextResponse.json({ error: `Failed to upsert venue: ${venueErr.message}` }, { status: 500 });
 
-  const match = await db.match.create({
-    data: {
+  const { data: match, error: matchErr } = await supabase
+    .from("Match")
+    .insert({
       seasonId: season.id,
       venueId: venue.id,
       teamAId: teamA.id,
       teamBId: teamB.id,
-      dateTime,
+      dateTime: dateTime.toISOString(),
       matchNumber: body?.matchNumber ?? null,
-    },
-    select: { id: true },
-  });
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (matchErr) return NextResponse.json({ error: `Failed to create match: ${matchErr.message}` }, { status: 500 });
 
   return NextResponse.json({
     ok: true,
