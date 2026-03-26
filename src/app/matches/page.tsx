@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { db } from "@/db";
 import { getAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+type TeamRow = { id: string };
+type SeasonRow = { id: string; name: string };
+type MatchRow = {
+  id: string;
+  dateTime: string;
+  venue: { name: string } | null;
+  teamA: { shortCode: string } | null;
+  teamB: { shortCode: string } | null;
+};
 
 export default async function MatchesPage() {
   const auth = await getAuth();
@@ -18,8 +28,20 @@ export default async function MatchesPage() {
     );
   }
 
-  const team = await db.team.findFirst({ where: { tenantId: auth.tenantId } });
-  const season = await db.season.findFirst({ where: { isActive: true }, orderBy: { year: "desc" } });
+  const supabase = getSupabaseAdmin();
+  const { data: team } = await supabase
+    .from("Team")
+    .select("id")
+    .eq("tenantId", auth.tenantId)
+    .limit(1)
+    .maybeSingle<TeamRow>();
+  const { data: season } = await supabase
+    .from("Season")
+    .select("id,name")
+    .eq("isActive", true)
+    .order("year", { ascending: false })
+    .limit(1)
+    .maybeSingle<SeasonRow>();
 
   if (!team || !season) {
     return (
@@ -31,17 +53,16 @@ export default async function MatchesPage() {
     );
   }
 
-  const matches = await db.match.findMany({
-    where: { seasonId: season.id, OR: [{ teamAId: team.id }, { teamBId: team.id }] },
-    orderBy: { dateTime: "asc" },
-    select: {
-      id: true,
-      dateTime: true,
-      venue: { select: { name: true } },
-      teamA: { select: { shortCode: true } },
-      teamB: { select: { shortCode: true } },
-    },
-  });
+  const { data: matchesData } = await supabase
+    .from("Match")
+    .select(
+      "id,dateTime,teamAId,teamBId,venue:Venue!Match_venueId_fkey(name),teamA:Team!Match_teamAId_fkey(shortCode),teamB:Team!Match_teamBId_fkey(shortCode)"
+    )
+    .eq("seasonId", season.id)
+    .or(`teamAId.eq.${team.id},teamBId.eq.${team.id}`)
+    .order("dateTime", { ascending: true })
+    .returns<MatchRow[]>();
+  const matches = matchesData ?? [];
 
   return (
     <div className="min-h-screen bg-zinc-50 p-6">
@@ -58,10 +79,10 @@ export default async function MatchesPage() {
               <li key={m.id} className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <div className="font-medium">
-                    {m.teamA.shortCode} vs {m.teamB.shortCode}
+                    {m.teamA?.shortCode ?? "?"} vs {m.teamB?.shortCode ?? "?"}
                   </div>
                   <div className="text-xs text-zinc-600">
-                    {new Date(m.dateTime).toLocaleString()} • {m.venue.name}
+                    {new Date(m.dateTime).toLocaleString()} • {m.venue?.name ?? "Unknown venue"}
                   </div>
                 </div>
                 <Link className="shrink-0 underline" href={`/matches/${m.id}/setup`}>

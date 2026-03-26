@@ -36,6 +36,11 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - `/matches/[matchId]/setup`
   - `GET /api/matches?teamId=&seasonId=`
   - `PUT /api/matches/:matchId/context`
+- **Step 12 (started)**: Supabase migration (incremental)
+  - added `@supabase/supabase-js`
+  - added `src/lib/supabase.ts`
+  - rewired `GET /api/matches` to Supabase client
+  - rewired `/matches` page reads to Supabase
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
