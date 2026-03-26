@@ -5,8 +5,9 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 type ModelRunRow = {
   id: string;
-  predictedXI: { playerId: string; score?: number }[];
-  bench: { playerId: string; score?: number }[];
+  predictedXI: { playerId: string; score?: number; explanations?: string[] }[];
+  bench: { playerId: string; score?: number; explanations?: string[] }[];
+  modelVersion: string;
   createdAt: string;
 };
 
@@ -25,7 +26,7 @@ export default async function PredictedXIPage({
 
   const { data: latestRun } = await supabase
     .from("ModelRun")
-    .select("id,predictedXI,bench,createdAt")
+    .select("id,predictedXI,bench,modelVersion,createdAt")
     .eq("matchId", matchId)
     .order("createdAt", { ascending: false })
     .limit(1)
@@ -54,6 +55,7 @@ export default async function PredictedXIPage({
         <div className="rounded-xl bg-white p-6 shadow-sm">
           <div className="text-sm text-zinc-600">Model run</div>
           <div className="mt-1 text-sm">{new Date(latestRun.createdAt).toLocaleString()}</div>
+          <div className="mt-1 text-xs text-zinc-500">Version: {latestRun.modelVersion}</div>
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-sm">
@@ -63,6 +65,9 @@ export default async function PredictedXIPage({
               <li key={p.playerId}>
                 {byId.get(p.playerId) ?? p.playerId}
                 {typeof p.score === "number" ? ` (${p.score})` : ""}
+                {p.explanations?.length ? (
+                  <div className="text-xs text-zinc-500">{p.explanations.join(" | ")}</div>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -75,6 +80,9 @@ export default async function PredictedXIPage({
               <li key={p.playerId}>
                 {byId.get(p.playerId) ?? p.playerId}
                 {typeof p.score === "number" ? ` (${p.score})` : ""}
+                {p.explanations?.length ? (
+                  <div className="text-xs text-zinc-500">{p.explanations.join(" | ")}</div>
+                ) : null}
               </li>
             ))}
           </ul>

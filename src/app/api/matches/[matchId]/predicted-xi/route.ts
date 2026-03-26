@@ -12,7 +12,74 @@ type MatchRow = {
   teamB: { tenantId: string | null } | null;
 };
 
-type SquadRow = { playerId: string };
+type SquadRow = {
+  playerId: string;
+  player: {
+    name: string;
+    primaryRole: string;
+    fieldingRole: string;
+    isOverseas: boolean;
+  } | null;
+};
+
+type AvailabilityRow = {
+  playerId: string;
+  status: string;
+  workloadFlag: string | null;
+};
+
+type Candidate = {
+  playerId: string;
+  name: string;
+  primaryRole: string;
+  fieldingRole: string;
+  isOverseas: boolean;
+  status: string;
+  workloadFlag: string | null;
+  score: number;
+  explanations: string[];
+};
+
+function isBowlingRole(role: string) {
+  return role === "SPECIALIST_BOWLER" || role === "BOWLING_ALL_ROUNDER" || role === "ALL_ROUNDER";
+}
+
+function buildScore(c: Omit<Candidate, "score" | "explanations">) {
+  let score = 50;
+  const explanations: string[] = [];
+
+  if (c.primaryRole === "ALL_ROUNDER" || c.primaryRole === "BOWLING_ALL_ROUNDER") {
+    score += 20;
+    explanations.push("All-rounder role balance");
+  }
+  if (c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER") {
+    score += 15;
+    explanations.push("Wicket-keeper coverage");
+  }
+  if (c.primaryRole === "SPECIALIST_BOWLER") {
+    score += 10;
+    explanations.push("Specialist bowling option");
+  }
+  if (c.primaryRole === "OPENER" || c.primaryRole === "TOP_ORDER") {
+    score += 5;
+    explanations.push("Top-order stability");
+  }
+  if (c.status === "DOUBTFUL") {
+    score -= 8;
+    explanations.push("Availability risk: doubtful");
+  }
+  if (c.workloadFlag === "HIGH") {
+    score -= 6;
+    explanations.push("High workload penalty");
+  }
+  if (c.workloadFlag === "MANAGED") {
+    score -= 4;
+    explanations.push("Managed workload penalty");
+  }
+  if (!explanations.length) explanations.push("Baseline squad selection");
+
+  return { score, explanations };
+}
 
 export async function POST(
   req: NextRequest,
@@ -51,7 +118,9 @@ export async function POST(
 
   const { data: squadData, error: squadErr } = await supabase
     .from("SquadMembership")
-    .select("playerId")
+    .select(
+      "playerId,player:Player!SquadMembership_playerId_fkey(name,primaryRole,fieldingRole,isOverseas)"
+    )
     .eq("seasonId", match.seasonId)
     .eq("teamId", selectedTeamId)
     .returns<SquadRow[]>();
@@ -59,16 +128,96 @@ export async function POST(
   const squad = squadData ?? [];
   if (!squad.length) return NextResponse.json({ error: "No squad found for prediction" }, { status: 400 });
 
-  const predictedXI = squad.slice(0, 11).map((s, idx) => ({
-    playerId: s.playerId,
-    score: 100 - idx,
-    explanations: ["Stub selector: first available squad players"],
+  const { data: availData } = await supabase
+    .from("PlayerAvailability")
+    .select("playerId,status,workloadFlag")
+    .eq("seasonId", match.seasonId)
+    .eq("teamId", selectedTeamId)
+    .returns<AvailabilityRow[]>();
+  const availByPlayer = new Map((availData ?? []).map((a) => [a.playerId, a]));
+
+  const baseCandidates: Candidate[] = squad
+    .map((s) => {
+      const p = s.player;
+      if (!p) return null;
+      const a = availByPlayer.get(s.playerId);
+      const status = a?.status ?? "AVAILABLE";
+      if (status === "INJURED" || status === "UNAVAILABLE" || status === "SUSPENDED") return null;
+      const base = {
+        playerId: s.playerId,
+        name: p.name,
+        primaryRole: p.primaryRole,
+        fieldingRole: p.fieldingRole,
+        isOverseas: p.isOverseas,
+        status,
+        workloadFlag: a?.workloadFlag ?? null,
+      };
+      const { score, explanations } = buildScore(base);
+      return { ...base, score, explanations };
+    })
+    .filter((x): x is Candidate => !!x)
+    .sort((a, b) => b.score - a.score);
+
+  const selected: Candidate[] = [];
+  const selectedIds = new Set<string>();
+  let overseas = 0;
+
+  function tryAdd(next: Candidate) {
+    if (selectedIds.has(next.playerId)) return false;
+    if (next.isOverseas && overseas >= 4) return false;
+    selected.push(next);
+    selectedIds.add(next.playerId);
+    if (next.isOverseas) overseas += 1;
+    return true;
+  }
+
+  // Hard constraints (minimal MVP rules)
+  const keeper = baseCandidates.find(
+    (c) => c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER"
+  );
+  if (keeper) tryAdd(keeper);
+
+  while (selected.filter((c) => isBowlingRole(c.primaryRole)).length < 4) {
+    const nextBowler = baseCandidates.find((c) => !selectedIds.has(c.playerId) && isBowlingRole(c.primaryRole));
+    if (!nextBowler) break;
+    if (!tryAdd(nextBowler)) break;
+  }
+
+  for (const c of baseCandidates) {
+    if (selected.length >= 11) break;
+    tryAdd(c);
+  }
+
+  // Fill remaining slots if overseas cap blocked selection
+  if (selected.length < 11) {
+    for (const c of baseCandidates) {
+      if (selected.length >= 11) break;
+      if (selectedIds.has(c.playerId)) continue;
+      selected.push(c);
+      selectedIds.add(c.playerId);
+    }
+  }
+
+  const predictedXI = selected.slice(0, 11).map((c, idx) => ({
+    playerId: c.playerId,
+    score: c.score - idx,
+    explanations: c.explanations,
   }));
-  const bench = squad.slice(11, 15).map((s, idx) => ({
-    playerId: s.playerId,
-    score: 89 - idx,
-    explanations: ["Stub bench"],
-  }));
+  const bench = baseCandidates
+    .filter((c) => !selectedIds.has(c.playerId))
+    .slice(0, 4)
+    .map((c) => ({ playerId: c.playerId, score: c.score, explanations: c.explanations }));
+
+  const constraintLog = {
+    mode: "rules_v1",
+    selectedTeamId,
+    squadSize: squad.length,
+    availableCandidates: baseCandidates.length,
+    selectedCount: predictedXI.length,
+    bowlersInXI: selected.filter((c) => isBowlingRole(c.primaryRole)).length,
+    keepersInXI: selected.filter((c) => c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER").length,
+    overseasInXI: selected.filter((c) => c.isOverseas).length,
+  };
 
   const { data: modelRun, error: runErr } = await supabase
     .from("ModelRun")
@@ -76,11 +225,20 @@ export async function POST(
       matchId: match.id,
       tenantId,
       triggeredByUserId: auth.userId,
-      modelVersion: "rules_v1_stub",
+      modelVersion: "rules_v1",
       predictedXI,
       bench,
-      constraintLog: { mode: "stub", selectedTeamId, squadSize: squad.length },
-      featureWeights: { stub: true },
+      constraintLog,
+      featureWeights: {
+        base: 50,
+        allRounder: 20,
+        keeper: 15,
+        bowler: 10,
+        topOrder: 5,
+        doubtfulPenalty: -8,
+        workloadHighPenalty: -6,
+        workloadManagedPenalty: -4,
+      },
       collapseRisk: null,
       collapseFactors: null,
     })

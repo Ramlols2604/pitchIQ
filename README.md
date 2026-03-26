@@ -45,11 +45,15 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - `POST /api/matches/:matchId/predicted-xi`
   - `/matches/:matchId/predicted-xi`
   - setup page button to generate and redirect
+- **Step 14 (done)**: Rules-based XI v1 + explainability
+  - constraints: min wicketkeeper, bowling balance target, availability filtering
+  - caps: overseas preference with fallback fill
+  - weighted scoring + per-player explanations shown on predicted XI page
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
 - **Matches**: create match records (admin/ingest) so `/matches` lists something
-- **Prediction**: replace stub selector with rules + constraints + explainers
+- **Prediction**: refine role quotas + opposition/context-aware scoring
 
 ## Local dev (DB + migrate + seed)
 
