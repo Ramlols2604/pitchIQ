@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
+import { setUserPreference } from "@/lib/user-preferences";
 
 const COOKIE_NAME = "pitchiq_dashboard_auto";
 
 export async function GET(req: NextRequest) {
+  let auth;
   try {
-    await requireAuth(req, { roles: ["LEAGUE_ADMIN", "TEAM_USER", "ANALYST_USER"] });
+    auth = await requireAuth(req, { roles: ["LEAGUE_ADMIN", "TEAM_USER", "ANALYST_USER"] });
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const enabled = req.nextUrl.searchParams.get("enabled") === "1";
+  await setUserPreference(auth.userId, "dashboard.autoRedirect", enabled ? "1" : "0");
   const res = NextResponse.redirect(new URL("/dashboard", req.url));
   res.cookies.set({
     name: COOKIE_NAME,

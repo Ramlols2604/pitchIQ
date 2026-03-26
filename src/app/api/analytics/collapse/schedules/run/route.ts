@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 
 import { requireAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -31,6 +32,10 @@ async function insertRunLog(
   });
 }
 
+function signPayload(secret: string, body: string) {
+  return crypto.createHmac("sha256", secret).update(body).digest("hex");
+}
+
 export async function POST(req: NextRequest) {
   try {
     await requireAuth(req, { roles: ["LEAGUE_ADMIN"] });
@@ -41,6 +46,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const appUrl = process.env.APP_URL?.trim() || new URL(req.url).origin;
   const webhookUrl = process.env.SCHEDULED_EXPORT_WEBHOOK_URL?.trim() || "";
+  const webhookSecret = process.env.SCHEDULED_EXPORT_WEBHOOK_SECRET?.trim() || "";
   const nowIso = new Date().toISOString();
   const { data: due, error: dueErr } = await supabase
     .from("ScheduledExport")
@@ -79,17 +85,27 @@ export async function POST(req: NextRequest) {
 
     if (webhookUrl) {
       try {
+        const payload = JSON.stringify({
+          event: "scheduled_export.ready",
+          version: "v1",
+          scheduleId: s.id,
+          destinationEmail: s.destinationEmail,
+          format: s.format,
+          exportUrl,
+          seasonId: s.seasonId,
+          teamId: s.teamId,
+          generatedAt: nowIso,
+        });
+        const signature = webhookSecret ? signPayload(webhookSecret, payload) : "";
         const resp = await fetch(webhookUrl, {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            scheduleId: s.id,
-            destinationEmail: s.destinationEmail,
-            format: s.format,
-            exportUrl,
-            seasonId: s.seasonId,
-            teamId: s.teamId,
-          }),
+          headers: {
+            "content-type": "application/json",
+            "x-pitchiq-event": "scheduled_export.ready",
+            "x-pitchiq-version": "v1",
+            "x-pitchiq-signature": signature,
+          },
+          body: payload,
         });
         responseCode = resp.status;
         delivered = resp.ok;

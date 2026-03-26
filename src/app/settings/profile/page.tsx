@@ -4,15 +4,26 @@ import { redirect } from "next/navigation";
 
 import { getAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/user-preferences";
 
 export default async function ProfileSettingsPage() {
   const auth = await getAuth();
   if (!auth) redirect("/auth/login");
   const cookieStore = await cookies();
-  const prefAuto = cookieStore.get("pitchiq_dashboard_auto")?.value === "1";
-  const prefDefault = cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
-  const calibBlend = cookieStore.get("pitchiq_calib_blend")?.value ?? "";
-  const calibRawShift = cookieStore.get("pitchiq_calib_raw_shift")?.value ?? "";
+  const prefs = await getUserPreferences(auth.userId, [
+    "dashboard.autoRedirect",
+    "dashboard.defaultLanding",
+    "prediction.calibrationBlend",
+    "prediction.calibrationRawShift",
+  ]);
+  const prefAuto =
+    (prefs.get("dashboard.autoRedirect") ?? cookieStore.get("pitchiq_dashboard_auto")?.value) === "1";
+  const prefDefault =
+    prefs.get("dashboard.defaultLanding") ?? cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
+  const calibBlend =
+    prefs.get("prediction.calibrationBlend") ?? cookieStore.get("pitchiq_calib_blend")?.value ?? "";
+  const calibRawShift =
+    prefs.get("prediction.calibrationRawShift") ?? cookieStore.get("pitchiq_calib_raw_shift")?.value ?? "";
   const supabase = getSupabaseAdmin();
   const teamId =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")

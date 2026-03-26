@@ -108,11 +108,19 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 31 (done)**: Calibration diagnostics report
   - added `/analytics/calibration` with adjustment summaries and recent run table
   - linked collapse analytics page to calibration report
+- **Step 32 (done)**: Webhook payload contract + signing hooks
+  - runner now sends versioned webhook headers and optional HMAC signature
+  - added `SCHEDULED_EXPORT_WEBHOOK_SECRET` support
+  - documented payload contract in `docs/scheduled-export-webhook.md`
+- **Step 33 (done)**: User preference persistence (DB-backed)
+  - added `UserPreference` helper + SQL scaffold
+  - dashboard/profile now read persisted preferences with cookie fallback
+  - preference API routes now upsert user-scoped settings
 
 ## Next up
 - **Prediction**: add real match-outcome labeling for calibration accuracy metrics
-- **Analytics**: wire delivery webhook to actual email provider workflow
-- **Dashboard**: migrate cookie preferences to user-profile persistence
+- **Analytics**: integrate webhook receiver with real email provider workflow
+- **Preferences**: migrate fully from cookie fallback to DB-only after rollout
 
 ## Local dev
 

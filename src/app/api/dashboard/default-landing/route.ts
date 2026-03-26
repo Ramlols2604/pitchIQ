@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { setUserPreference } from "@/lib/user-preferences";
 
 const COOKIE_NAME = "pitchiq_dashboard_default";
 
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
   if (!allowed.has(value)) {
     return NextResponse.json({ error: "Invalid landing value for role" }, { status: 400 });
   }
+  await setUserPreference(auth.userId, "dashboard.defaultLanding", value);
 
   const res = NextResponse.redirect(new URL("/settings/profile", req.url));
   res.cookies.set({

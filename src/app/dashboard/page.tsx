@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { getAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/user-preferences";
 
 export default async function DashboardPage({
   searchParams,
@@ -15,8 +16,14 @@ export default async function DashboardPage({
   const supabase = getSupabaseAdmin();
   const sp = await searchParams;
   const cookieStore = await cookies();
-  const prefAuto = cookieStore.get("pitchiq_dashboard_auto")?.value === "1";
-  const prefDefault = cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
+  const prefs = await getUserPreferences(auth.userId, [
+    "dashboard.autoRedirect",
+    "dashboard.defaultLanding",
+  ]);
+  const prefAuto =
+    (prefs.get("dashboard.autoRedirect") ?? cookieStore.get("pitchiq_dashboard_auto")?.value) === "1";
+  const prefDefault =
+    prefs.get("dashboard.defaultLanding") ?? cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
