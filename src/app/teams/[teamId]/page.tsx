@@ -1,9 +1,27 @@
 import { notFound, redirect } from "next/navigation";
 
-import { db } from "@/db";
 import { SeasonSwitcher } from "@/components/SeasonSwitcher";
 import { SquadTable } from "@/components/SquadTable";
 import { getAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+type TeamRow = { id: string; displayName: string; shortCode: string; tenantId: string | null };
+type SeasonRow = { id: string; year: number; name: string | null };
+type SquadMembershipRow = { playerId: string; notes: string | null; player: PlayerRow | null };
+type PlayerRow = {
+  name: string;
+  primaryRole: string;
+  battingStyle: string;
+  bowlingStyle: string;
+  nationality: string;
+  isOverseas: boolean;
+};
+type AvailabilityRow = {
+  playerId: string;
+  status: string;
+  injuryNote: string | null;
+  workloadFlag: string | null;
+};
 
 export default async function TeamPage({
   params,
@@ -14,37 +32,55 @@ export default async function TeamPage({
 }) {
   const auth = await getAuth();
   if (!auth) redirect("/auth/login");
+  const supabase = getSupabaseAdmin();
 
   const { teamId } = await params;
-  const team = await db.team.findUnique({ where: { id: teamId } });
+  const { data: team } = await supabase
+    .from("Team")
+    .select("id,displayName,shortCode,tenantId")
+    .eq("id", teamId)
+    .maybeSingle<TeamRow>();
   if (!team) notFound();
 
   if (auth.role === "TEAM_USER" && auth.tenantId !== team.tenantId) notFound();
 
-  const seasons = await db.season.findMany({
-    orderBy: { year: "desc" },
-    select: { id: true, year: true, name: true },
-  });
+  const { data: seasonsData } = await supabase
+    .from("Season")
+    .select("id,year,name")
+    .order("year", { ascending: false })
+    .returns<SeasonRow[]>();
+  const seasons = seasonsData ?? [];
+
   const sp = await searchParams;
   const seasonId =
     (sp.seasonId && seasons.some((s) => s.id === sp.seasonId) && sp.seasonId) ||
     seasons[0]?.id ||
     null;
 
-  const squad = seasonId
-    ? await db.squadMembership.findMany({
-        where: { seasonId, teamId },
-        include: { player: true },
-        orderBy: { player: { name: "asc" } },
-      })
-    : [];
+  const { data: squadData } =
+    seasonId
+      ? await supabase
+          .from("SquadMembership")
+          .select(
+            "playerId,notes,player:Player!SquadMembership_playerId_fkey(name,primaryRole,battingStyle,bowlingStyle,nationality,isOverseas)"
+          )
+          .eq("seasonId", seasonId)
+          .eq("teamId", teamId)
+          .order("playerId", { ascending: true })
+          .returns<SquadMembershipRow[]>()
+      : { data: [] as SquadMembershipRow[] };
+  const squad = squadData ?? [];
 
-  const avail = seasonId
-    ? await db.playerAvailability.findMany({
-        where: { seasonId, teamId },
-        select: { playerId: true, status: true, injuryNote: true, workloadFlag: true },
-      })
-    : [];
+  const { data: availData } =
+    seasonId
+      ? await supabase
+          .from("PlayerAvailability")
+          .select("playerId,status,injuryNote,workloadFlag")
+          .eq("seasonId", seasonId)
+          .eq("teamId", teamId)
+          .returns<AvailabilityRow[]>()
+      : { data: [] as AvailabilityRow[] };
+  const avail = availData ?? [];
   const availByPlayer = new Map(avail.map((a) => [a.playerId, a]));
 
   return (
@@ -69,14 +105,15 @@ export default async function TeamPage({
               seasonId={seasonId}
               rows={squad.map((m) => {
                 const a = availByPlayer.get(m.playerId);
+                const p = m.player;
                 return {
                   playerId: m.playerId,
-                  name: m.player.name,
-                  primaryRole: m.player.primaryRole,
-                  battingStyle: m.player.battingStyle,
-                  bowlingStyle: m.player.bowlingStyle,
-                  nationality: m.player.nationality,
-                  isOverseas: m.player.isOverseas,
+                  name: p?.name ?? "Unknown",
+                  primaryRole: p?.primaryRole ?? "-",
+                  battingStyle: p?.battingStyle ?? "-",
+                  bowlingStyle: p?.bowlingStyle ?? "-",
+                  nationality: p?.nationality ?? "-",
+                  isOverseas: p?.isOverseas ?? false,
                   availability: a?.status ?? "AVAILABLE",
                   injuryNote: a?.injuryNote ?? null,
                   workloadFlag: a?.workloadFlag ?? null,

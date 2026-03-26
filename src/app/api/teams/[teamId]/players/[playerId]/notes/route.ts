@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { db } from "@/db";
 import { requireAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function PUT(
   req: NextRequest,
@@ -14,30 +14,51 @@ export async function PUT(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const supabase = getSupabaseAdmin();
   const { teamId, playerId } = await params;
+
   const body = (await req.json().catch(() => null)) as
     | { seasonId?: string; notes?: string | null }
     | null;
+
   const seasonId = body?.seasonId;
   if (!seasonId) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
-  const team = await db.team.findUnique({ where: { id: teamId }, select: { tenantId: true } });
+  const { data: team, error: teamErr } = await supabase
+    .from("Team")
+    .select("tenantId")
+    .eq("id", teamId)
+    .maybeSingle<{ tenantId: string | null }>();
+
+  if (teamErr) return NextResponse.json({ error: "Failed to load team" }, { status: 500 });
   if (!team) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   if (auth.role === "TEAM_USER" && auth.tenantId !== team.tenantId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const membership = await db.squadMembership.findUnique({
-    where: { seasonId_teamId_playerId: { seasonId, teamId, playerId } },
-    select: { id: true },
-  });
+  const { data: membership, error: membershipErr } = await supabase
+    .from("SquadMembership")
+    .select("id")
+    .eq("seasonId", seasonId)
+    .eq("teamId", teamId)
+    .eq("playerId", playerId)
+    .maybeSingle<{ id: string }>();
+
+  if (membershipErr) return NextResponse.json({ error: "Failed to load squad row" }, { status: 500 });
   if (!membership) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.squadMembership.update({
-    where: { id: membership.id },
-    data: { notes: body?.notes ?? null },
-  });
+  const { error: updateErr } = await supabase
+    .from("SquadMembership")
+    .update({ notes: body?.notes ?? null })
+    .eq("id", membership.id);
+
+  if (updateErr) {
+    return NextResponse.json(
+      { error: `Failed to save notes: ${updateErr.message}` },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
-
