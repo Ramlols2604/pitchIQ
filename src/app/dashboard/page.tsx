@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAuth } from "@/lib/auth";
@@ -13,6 +14,8 @@ export default async function DashboardPage({
   if (!auth) redirect("/auth/login");
   const supabase = getSupabaseAdmin();
   const sp = await searchParams;
+  const cookieStore = await cookies();
+  const prefAuto = cookieStore.get("pitchiq_dashboard_auto")?.value === "1";
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
@@ -39,7 +42,7 @@ export default async function DashboardPage({
         ? (team ? `/teams/${team.id}` : "/matches")
         : "/matches";
 
-  if (sp.auto === "1") {
+  if (sp.auto === "1" || (prefAuto && sp.auto !== "0")) {
     redirect(defaultLanding);
   }
 
@@ -55,6 +58,19 @@ export default async function DashboardPage({
             <Link className="underline" href="/dashboard?auto=1">
               jump directly to your default page
             </Link>
+          </div>
+          <div className="mt-1 text-xs text-zinc-600">
+            Persisted auto-redirect:{" "}
+            {prefAuto ? "ON" : "OFF"}{" "}
+            (<Link className="underline" href={`/api/dashboard/auto-landing?enabled=${prefAuto ? "0" : "1"}`}>{prefAuto ? "disable" : "enable"}</Link>)
+            {prefAuto ? (
+              <>
+                {" "}•{" "}
+                <Link className="underline" href="/dashboard?auto=0">
+                  stay on dashboard this visit
+                </Link>
+              </>
+            ) : null}
           </div>
         </div>
 

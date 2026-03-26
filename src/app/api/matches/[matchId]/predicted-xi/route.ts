@@ -57,6 +57,10 @@ type Candidate = {
   explanations: string[];
 };
 
+type HistoricalRunRow = {
+  collapseRisk: number | null;
+};
+
 function isBowlingRole(role: string) {
   return role === "SPECIALIST_BOWLER" || role === "BOWLING_ALL_ROUNDER" || role === "ALL_ROUNDER";
 }
@@ -76,6 +80,48 @@ function venueRoleTargets(ctx: MatchContextRow | null) {
     return { minBowlers: 5, minTopOrder: 3, minAllRounders: 1 };
   }
   return { minBowlers: 4, minTopOrder: 3, minAllRounders: 1 };
+}
+
+function clampRisk(v: number) {
+  return Math.max(0.05, Math.min(0.95, v));
+}
+
+function deriveRawCollapseRisk(args: {
+  bowlersInXI: number;
+  topOrderInXI: number;
+  allRoundersInXI: number;
+  keepersInXI: number;
+  opponentBowlingDepth: number;
+  opponentTopOrderDepth: number;
+  pressureTag?: string;
+}) {
+  let risk = 0.42;
+  if (args.bowlersInXI < 4) risk += 0.08;
+  if (args.topOrderInXI < 3) risk += 0.06;
+  if (args.allRoundersInXI < 1) risk += 0.04;
+  if (args.keepersInXI < 1) risk += 0.03;
+  if (args.opponentBowlingDepth >= 5 && args.topOrderInXI < 4) risk += 0.05;
+  if (args.opponentTopOrderDepth >= 5 && args.bowlersInXI < 5) risk += 0.04;
+  if (args.allRoundersInXI >= 2) risk -= 0.03;
+  if (args.bowlersInXI >= 5) risk -= 0.02;
+  if (args.pressureTag === "KNOCKOUT") risk += 0.03;
+  return clampRisk(risk);
+}
+
+function calibrateCollapseRisk(raw: number, historical: HistoricalRunRow[]) {
+  const samples = historical
+    .map((h) => h.collapseRisk)
+    .filter((x): x is number => typeof x === "number");
+  if (samples.length < 8) {
+    return { calibrated: raw, baselineMean: null as number | null, sampleCount: samples.length };
+  }
+  const baselineMean = samples.reduce((a, b) => a + b, 0) / samples.length;
+  const blend = samples.length >= 30 ? 0.7 : 0.8;
+  return {
+    calibrated: clampRisk(raw * blend + baselineMean * (1 - blend)),
+    baselineMean,
+    sampleCount: samples.length,
+  };
 }
 
 function buildScore(
@@ -342,6 +388,38 @@ export async function POST(
     keepersInXI: selected.filter((c) => c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER").length,
     overseasInXI: selected.filter((c) => c.isOverseas).length,
   };
+  const rawCollapseRisk = deriveRawCollapseRisk({
+    bowlersInXI: constraintLog.bowlersInXI,
+    topOrderInXI: constraintLog.topOrderInXI,
+    allRoundersInXI: constraintLog.allRoundersInXI,
+    keepersInXI: constraintLog.keepersInXI,
+    opponentBowlingDepth: oppBowlingDepth,
+    opponentTopOrderDepth: oppTopOrderDepth,
+    pressureTag: context?.pressureTag,
+  });
+  const { data: historicalRuns } = await supabase
+    .from("ModelRun")
+    .select("collapseRisk")
+    .eq("tenantId", tenantId)
+    .not("collapseRisk", "is", null)
+    .order("createdAt", { ascending: false })
+    .limit(120)
+    .returns<HistoricalRunRow[]>();
+  const calibration = calibrateCollapseRisk(rawCollapseRisk, historicalRuns ?? []);
+  const collapseRisk = calibration.calibrated;
+  const collapseFactors = {
+    source: "rules_backtest_calibrated",
+    rawRisk: rawCollapseRisk,
+    calibratedRisk: collapseRisk,
+    baselineMean: calibration.baselineMean,
+    baselineSamples: calibration.sampleCount,
+    topOrderInXI: constraintLog.topOrderInXI,
+    bowlersInXI: constraintLog.bowlersInXI,
+    allRoundersInXI: constraintLog.allRoundersInXI,
+    keepersInXI: constraintLog.keepersInXI,
+    opponentBowlingDepth: oppBowlingDepth,
+    opponentTopOrderDepth: oppTopOrderDepth,
+  };
 
   const { data: modelRun, error: runErr } = await supabase
     .from("ModelRun")
@@ -349,7 +427,7 @@ export async function POST(
       matchId: match.id,
       tenantId,
       triggeredByUserId: auth.userId,
-      modelVersion: "rules_v3",
+      modelVersion: "rules_v4_calibrated",
       predictedXI,
       bench,
       constraintLog,
@@ -370,8 +448,8 @@ export async function POST(
         matchupVsOppBowlingDepth: 4,
         matchupVsOppTopOrderDepth: 4,
       },
-      collapseRisk: null,
-      collapseFactors: null,
+      collapseRisk,
+      collapseFactors,
     })
     .select("id")
     .single<{ id: string }>();

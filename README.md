@@ -70,11 +70,18 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 20 (done)**: Analytics factor drill-down
   - collapse table now shows model version, role-mix, matchup context, and top factors
   - uses `collapseFactors` when present, with explainable fallback from `featureWeights`
+- **Step 21 (done)**: Prediction risk backtesting calibration
+  - added raw collapse-risk derivation from role/matchup balance
+  - calibrates risk against historical model runs and stores `collapseFactors`
+  - model version bumped to `rules_v4_calibrated`
+- **Step 22 (done)**: Persisted dashboard redirect preference
+  - added cookie-backed toggle via `/api/dashboard/auto-landing`
+  - dashboard now supports durable auto-redirect with one-visit bypass (`?auto=0`)
 
 ## Next up
-- **Prediction**: calibrate weights with match outcome backtesting
-- **Dashboard**: optional persisted redirect preference (cookie/profile setting)
 - **Analytics**: add row-level expanders and trend charting
+- **Prediction**: tune calibration with real match outcomes
+- **Dashboard**: expose redirect preference in user profile settings
 
 ## Local dev
 
