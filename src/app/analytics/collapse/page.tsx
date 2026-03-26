@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { CollapseRunsTable } from "@/components/CollapseRunsTable";
 import { getAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -22,20 +23,6 @@ type RunRow = {
     opponentTopOrderDepth?: number;
   } | null;
 };
-
-function deriveFallbackRisk(run: RunRow) {
-  const bowlers = run.constraintLog?.bowlersInXI ?? 0;
-  const keepers = run.constraintLog?.keepersInXI ?? 0;
-  const raw = 0.45 - Math.min(0.15, bowlers * 0.03) - Math.min(0.05, keepers * 0.05);
-  return Math.max(0.1, Math.min(0.8, raw));
-}
-
-function renderKeyValues(v: Record<string, unknown> | null) {
-  if (!v) return "-";
-  const pairs = Object.entries(v).slice(0, 4);
-  if (!pairs.length) return "-";
-  return pairs.map(([k, val]) => `${k}:${String(val)}`).join(" | ");
-}
 
 export default async function CollapseAnalyticsPage({
   searchParams,
@@ -132,55 +119,8 @@ export default async function CollapseAnalyticsPage({
 
         <div className="rounded-xl bg-white p-6 shadow-sm">
           <div className="text-sm font-medium">Latest runs</div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="text-zinc-600">
-                <tr>
-                  <th className="py-2 pr-4">Match</th>
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Model</th>
-                  <th className="py-2 pr-4">Collapse risk</th>
-                  <th className="py-2 pr-4">Role mix</th>
-                  <th className="py-2 pr-4">Matchup</th>
-                  <th className="py-2 pr-4">Top factors</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((r) => {
-                  const risk = r.collapseRisk ?? deriveFallbackRisk(r);
-                  return (
-                    <tr key={r.id} className="border-t border-zinc-100">
-                      <td className="py-2 pr-4">
-                        {(r.match?.teamA?.shortCode ?? "TBD")} vs {(r.match?.teamB?.shortCode ?? "TBD")}
-                      </td>
-                      <td className="py-2 pr-4">
-                        {r.match?.dateTime ? new Date(r.match.dateTime).toLocaleString() : "-"}
-                      </td>
-                      <td className="py-2 pr-4">{r.modelVersion || "-"}</td>
-                      <td className="py-2 pr-4">{Math.round(risk * 100)}%</td>
-                      <td className="py-2 pr-4">
-                        B:{r.constraintLog?.bowlersInXI ?? 0} AR:{r.constraintLog?.allRoundersInXI ?? 0} T:
-                        {r.constraintLog?.topOrderInXI ?? 0}
-                      </td>
-                      <td className="py-2 pr-4">
-                        OppB:{r.constraintLog?.opponentBowlingDepth ?? 0} OppT:
-                        {r.constraintLog?.opponentTopOrderDepth ?? 0}
-                      </td>
-                      <td className="py-2 pr-4">
-                        {r.collapseRisk == null ? renderKeyValues(r.featureWeights) : renderKeyValues(r.collapseFactors)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!runs.length ? (
-                  <tr>
-                    <td className="py-3 text-zinc-500" colSpan={7}>
-                      No model runs found for selected filters.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+          <div className="mt-3">
+            <CollapseRunsTable runs={runs} />
           </div>
         </div>
       </div>

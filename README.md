@@ -77,11 +77,15 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 22 (done)**: Persisted dashboard redirect preference
   - added cookie-backed toggle via `/api/dashboard/auto-landing`
   - dashboard now supports durable auto-redirect with one-visit bypass (`?auto=0`)
+- **Step 23 (done)**: Analytics row expanders + trend charting
+  - added row-level detail toggles for expanded factor context
+  - added compact collapse-risk trend bars (latest 12 runs)
+  - extracted analytics table into dedicated client component
 
 ## Next up
-- **Analytics**: add row-level expanders and trend charting
 - **Prediction**: tune calibration with real match outcomes
 - **Dashboard**: expose redirect preference in user profile settings
+- **Analytics**: add downloadable report/export options
 
 ## Local dev
 
