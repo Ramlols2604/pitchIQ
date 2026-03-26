@@ -93,10 +93,18 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
 - **Step 27 (done)**: Scheduled export scaffold
   - added `/api/analytics/collapse/schedules` (GET/POST scaffold responses)
   - linked analytics view to schedules API scaffold entrypoint
+- **Step 28 (done)**: Prediction calibration tuning controls
+  - added `/api/prediction/calibration?preset=...` for calibration presets
+  - profile settings now expose default/conservative/balanced/aggressive options
+  - prediction route now reads calibration cookies for blend/shift tuning
+- **Step 29 (done)**: Scheduled export persistence + runner stub
+  - moved schedules API to persisted `ScheduledExport` reads/writes (with SQL scaffold)
+  - added runner stub endpoint `/api/analytics/collapse/schedules/run`
+  - added SQL scaffold `supabase/sql/20260318_scheduled_exports.sql`
 
 ## Next up
 - **Prediction**: tune calibration with real match outcomes
-- **Analytics**: persist schedules and run background delivery jobs
+- **Analytics**: wire scheduled delivery worker and email integration
 - **Dashboard**: migrate cookie preferences to user-profile persistence
 
 ## Local dev

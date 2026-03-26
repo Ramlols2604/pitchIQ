@@ -86,6 +86,10 @@ function clampRisk(v: number) {
   return Math.max(0.05, Math.min(0.95, v));
 }
 
+function clampUnit(v: number) {
+  return Math.max(0, Math.min(1, v));
+}
+
 function deriveRawCollapseRisk(args: {
   bowlersInXI: number;
   topOrderInXI: number;
@@ -108,7 +112,7 @@ function deriveRawCollapseRisk(args: {
   return clampRisk(risk);
 }
 
-function calibrateCollapseRisk(raw: number, historical: HistoricalRunRow[]) {
+function calibrateCollapseRisk(raw: number, historical: HistoricalRunRow[], blendOverride?: number | null) {
   const samples = historical
     .map((h) => h.collapseRisk)
     .filter((x): x is number => typeof x === "number");
@@ -116,11 +120,13 @@ function calibrateCollapseRisk(raw: number, historical: HistoricalRunRow[]) {
     return { calibrated: raw, baselineMean: null as number | null, sampleCount: samples.length };
   }
   const baselineMean = samples.reduce((a, b) => a + b, 0) / samples.length;
-  const blend = samples.length >= 30 ? 0.7 : 0.8;
+  const defaultBlend = samples.length >= 30 ? 0.7 : 0.8;
+  const blend = typeof blendOverride === "number" ? clampUnit(blendOverride) : defaultBlend;
   return {
     calibrated: clampRisk(raw * blend + baselineMean * (1 - blend)),
     baselineMean,
     sampleCount: samples.length,
+    blend,
   };
 }
 
@@ -213,6 +219,10 @@ export async function POST(
   }
 
   const supabase = getSupabaseAdmin();
+  const blendCookie = Number(req.cookies.get("pitchiq_calib_blend")?.value);
+  const rawShiftCookie = Number(req.cookies.get("pitchiq_calib_raw_shift")?.value);
+  const blendOverride = Number.isFinite(blendCookie) ? Math.max(0.5, Math.min(0.95, blendCookie)) : null;
+  const rawShift = Number.isFinite(rawShiftCookie) ? Math.max(-0.2, Math.min(0.2, rawShiftCookie)) : 0;
   const { matchId } = await params;
 
   const { data: match, error: matchErr } = await supabase
@@ -388,7 +398,8 @@ export async function POST(
     keepersInXI: selected.filter((c) => c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER").length,
     overseasInXI: selected.filter((c) => c.isOverseas).length,
   };
-  const rawCollapseRisk = deriveRawCollapseRisk({
+  const rawCollapseRisk = clampRisk(
+    deriveRawCollapseRisk({
     bowlersInXI: constraintLog.bowlersInXI,
     topOrderInXI: constraintLog.topOrderInXI,
     allRoundersInXI: constraintLog.allRoundersInXI,
@@ -396,7 +407,8 @@ export async function POST(
     opponentBowlingDepth: oppBowlingDepth,
     opponentTopOrderDepth: oppTopOrderDepth,
     pressureTag: context?.pressureTag,
-  });
+    }) + rawShift
+  );
   const { data: historicalRuns } = await supabase
     .from("ModelRun")
     .select("collapseRisk")
@@ -405,7 +417,7 @@ export async function POST(
     .order("createdAt", { ascending: false })
     .limit(120)
     .returns<HistoricalRunRow[]>();
-  const calibration = calibrateCollapseRisk(rawCollapseRisk, historicalRuns ?? []);
+  const calibration = calibrateCollapseRisk(rawCollapseRisk, historicalRuns ?? [], blendOverride);
   const collapseRisk = calibration.calibrated;
   const collapseFactors = {
     source: "rules_backtest_calibrated",
@@ -413,6 +425,8 @@ export async function POST(
     calibratedRisk: collapseRisk,
     baselineMean: calibration.baselineMean,
     baselineSamples: calibration.sampleCount,
+    calibrationBlend: calibration.blend ?? blendOverride ?? "default",
+    rawShiftApplied: rawShift,
     topOrderInXI: constraintLog.topOrderInXI,
     bowlersInXI: constraintLog.bowlersInXI,
     allRoundersInXI: constraintLog.allRoundersInXI,

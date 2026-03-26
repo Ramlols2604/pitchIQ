@@ -11,6 +11,8 @@ export default async function ProfileSettingsPage() {
   const cookieStore = await cookies();
   const prefAuto = cookieStore.get("pitchiq_dashboard_auto")?.value === "1";
   const prefDefault = cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
+  const calibBlend = cookieStore.get("pitchiq_calib_blend")?.value ?? "";
+  const calibRawShift = cookieStore.get("pitchiq_calib_raw_shift")?.value ?? "";
   const supabase = getSupabaseAdmin();
   const teamId =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
@@ -87,6 +89,28 @@ export default async function ProfileSettingsPage() {
                 </Link>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="text-sm font-medium">Prediction calibration preset</div>
+          <div className="mt-2 text-sm text-zinc-600">
+            Current: blend=<span className="font-medium">{calibBlend || "default"}</span>, rawShift=
+            <span className="font-medium">{calibRawShift || "default"}</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <Link className="rounded border border-zinc-300 px-2 py-1" href="/api/prediction/calibration?preset=default">
+              Default
+            </Link>
+            <Link className="rounded border border-zinc-300 px-2 py-1" href="/api/prediction/calibration?preset=conservative">
+              Conservative
+            </Link>
+            <Link className="rounded border border-zinc-300 px-2 py-1" href="/api/prediction/calibration?preset=balanced">
+              Balanced
+            </Link>
+            <Link className="rounded border border-zinc-300 px-2 py-1" href="/api/prediction/calibration?preset=aggressive">
+              Aggressive
+            </Link>
           </div>
         </div>
       </div>

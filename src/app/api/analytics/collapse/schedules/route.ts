@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 type SchedulePayload = {
   seasonId?: string;
@@ -11,22 +12,37 @@ type SchedulePayload = {
 };
 
 export async function GET(req: NextRequest) {
+  let auth;
   try {
-    await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
+    auth = await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({
-    ok: true,
-    schedules: [],
-    note: "Scheduling scaffold only. Persisted jobs are not implemented yet.",
-  });
+  const supabase = getSupabaseAdmin();
+  const q = supabase
+    .from("ScheduledExport")
+    .select("id,seasonId,teamId,format,cadence,destinationEmail,status,nextRunAt,createdAt")
+    .order("createdAt", { ascending: false })
+    .limit(50);
+  if (auth.tenantId) q.eq("tenantId", auth.tenantId);
+  const { data, error } = await q;
+  if (error) {
+    return NextResponse.json(
+      {
+        error: `Failed to load schedules: ${error.message}`,
+        hint: "Create table ScheduledExport using the SQL scaffold in supabase/sql.",
+      },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json({ ok: true, schedules: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
+  let auth;
   try {
-    await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
+    auth = await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -39,18 +55,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({
-    ok: true,
-    accepted: true,
-    schedule: {
-      id: `scaffold_${Date.now()}`,
+  const supabase = getSupabaseAdmin();
+  const cadence = body.cadence ?? "weekly";
+  const nextRunAt = new Date(
+    Date.now() + (cadence === "daily" ? 24 : 7 * 24) * 60 * 60 * 1000
+  ).toISOString();
+  const { data, error } = await supabase
+    .from("ScheduledExport")
+    .insert({
+      tenantId: auth.tenantId,
+      createdByUserId: auth.userId,
       seasonId: body.seasonId,
       teamId: body.teamId ?? null,
       format: body.format ?? "csv",
-      cadence: body.cadence ?? "weekly",
+      cadence,
       destinationEmail: body.destinationEmail,
-      status: "scaffold_pending_worker",
-    },
-    note: "Scaffold accepted. Wire this to persistent storage + cron worker next.",
-  });
+      status: "ACTIVE",
+      nextRunAt,
+    })
+    .select("id,seasonId,teamId,format,cadence,destinationEmail,status,nextRunAt")
+    .single();
+  if (error) {
+    return NextResponse.json(
+      {
+        error: `Failed to create schedule: ${error.message}`,
+        hint: "Create table ScheduledExport using the SQL scaffold in supabase/sql.",
+      },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json({ ok: true, schedule: data });
 }
