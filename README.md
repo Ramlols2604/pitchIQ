@@ -60,11 +60,15 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added `/matches/create` form for `LEAGUE_ADMIN`
   - wired dashboard + matches page links to create flow
   - create action redirects directly to match setup page
+- **Step 18 (done)**: Prediction rules v3 (matchup + venue quotas)
+  - added opposition depth matchup weights (bowling-heavy/top-order-heavy)
+  - added venue/pitch profile role quotas (bowlers/top-order/all-rounders)
+  - saved richer constraint logs and bumped model version to `rules_v3`
 
 ## Next up
-- **Prediction**: add opposition-specific matchup weights + role quotas by venue profile
 - **Dashboard**: optional role-based auto-redirect presets from `/dashboard`
 - **Analytics**: enrich collapse view with deeper factor drill-downs
+- **Prediction**: calibrate weights with match outcome backtesting
 
 ## Local dev
 

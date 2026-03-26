@@ -24,6 +24,12 @@ type SquadRow = {
   } | null;
 };
 
+type OppSquadRow = {
+  player: {
+    primaryRole: string;
+  } | null;
+};
+
 type AvailabilityRow = {
   playerId: string;
   status: string;
@@ -55,12 +61,31 @@ function isBowlingRole(role: string) {
   return role === "SPECIALIST_BOWLER" || role === "BOWLING_ALL_ROUNDER" || role === "ALL_ROUNDER";
 }
 
+function isTopOrderRole(role: string) {
+  return role === "OPENER" || role === "TOP_ORDER";
+}
+
+function venueRoleTargets(ctx: MatchContextRow | null) {
+  if (ctx?.pitchType === "SPIN_FRIENDLY" || ctx?.pitchCondition === "WORN") {
+    return { minBowlers: 5, minTopOrder: 3, minAllRounders: 2 };
+  }
+  if (ctx?.pitchType === "FLAT") {
+    return { minBowlers: 4, minTopOrder: 4, minAllRounders: 1 };
+  }
+  if (ctx?.pitchType === "PACE_FRIENDLY" || ctx?.weatherCondition === "OVERCAST") {
+    return { minBowlers: 5, minTopOrder: 3, minAllRounders: 1 };
+  }
+  return { minBowlers: 4, minTopOrder: 3, minAllRounders: 1 };
+}
+
 function buildScore(
   c: Omit<Candidate, "score" | "explanations">,
   ctx: MatchContextRow | null,
   selectedTeamId: string,
   tossWinnerId: string | null,
-  tossDecision: "BAT" | "FIELD" | null
+  tossDecision: "BAT" | "FIELD" | null,
+  oppBowlingDepth: number,
+  oppTopOrderDepth: number
 ) {
   let score = 50;
   const explanations: string[] = [];
@@ -104,6 +129,14 @@ function buildScore(
   if (tossWinnerId === selectedTeamId && tossDecision === "BAT" && (c.primaryRole === "OPENER" || c.primaryRole === "TOP_ORDER")) {
     score += 4;
     explanations.push("Toss context: batting first top-order boost");
+  }
+  if (oppBowlingDepth >= 4 && (c.primaryRole === "ALL_ROUNDER" || c.primaryRole === "BOWLING_ALL_ROUNDER")) {
+    score += 4;
+    explanations.push("Matchup: all-rounder value vs bowling-heavy opposition");
+  }
+  if (oppTopOrderDepth >= 4 && isBowlingRole(c.primaryRole)) {
+    score += 4;
+    explanations.push("Matchup: bowling depth value vs top-heavy opposition");
   }
   if (c.status === "DOUBTFUL") {
     score -= 8;
@@ -155,12 +188,14 @@ export async function POST(
 
   const selectedTeamId =
     auth.tenantId && auth.tenantId === match.teamB?.tenantId ? match.teamBId : match.teamAId;
+  const opponentTeamId = selectedTeamId === match.teamAId ? match.teamBId : match.teamAId;
   const tenantId = auth.tenantId ?? match.teamA?.tenantId ?? match.teamB?.tenantId ?? "unknown";
   const { data: context } = await supabase
     .from("MatchContext")
     .select("pitchType,pitchCondition,weatherCondition,dewLikelihood,pressureTag,homeAdvantage")
     .eq("matchId", match.id)
     .maybeSingle<MatchContextRow>();
+  const roleTargets = venueRoleTargets(context ?? null);
 
   const { data: squadData, error: squadErr } = await supabase
     .from("SquadMembership")
@@ -181,6 +216,15 @@ export async function POST(
     .eq("teamId", selectedTeamId)
     .returns<AvailabilityRow[]>();
   const availByPlayer = new Map((availData ?? []).map((a) => [a.playerId, a]));
+  const { data: opponentSquadData } = await supabase
+    .from("SquadMembership")
+    .select("player:Player!SquadMembership_playerId_fkey(primaryRole)")
+    .eq("seasonId", match.seasonId)
+    .eq("teamId", opponentTeamId)
+    .returns<OppSquadRow[]>();
+  const oppSquad = opponentSquadData ?? [];
+  const oppBowlingDepth = oppSquad.filter((s) => isBowlingRole(s.player?.primaryRole ?? "")).length;
+  const oppTopOrderDepth = oppSquad.filter((s) => isTopOrderRole(s.player?.primaryRole ?? "")).length;
 
   const baseCandidates: Candidate[] = squad
     .map((s) => {
@@ -203,7 +247,9 @@ export async function POST(
         context ?? null,
         selectedTeamId,
         match.tossWinnerId ?? null,
-        match.tossDecision ?? null
+        match.tossDecision ?? null,
+        oppBowlingDepth,
+        oppTopOrderDepth
       );
       return { ...base, score, explanations };
     })
@@ -229,10 +275,29 @@ export async function POST(
   );
   if (keeper) tryAdd(keeper);
 
-  while (selected.filter((c) => isBowlingRole(c.primaryRole)).length < 4) {
+  while (selected.filter((c) => isBowlingRole(c.primaryRole)).length < roleTargets.minBowlers) {
     const nextBowler = baseCandidates.find((c) => !selectedIds.has(c.playerId) && isBowlingRole(c.primaryRole));
     if (!nextBowler) break;
     if (!tryAdd(nextBowler)) break;
+  }
+  while (selected.filter((c) => isTopOrderRole(c.primaryRole)).length < roleTargets.minTopOrder) {
+    const nextTopOrder = baseCandidates.find(
+      (c) => !selectedIds.has(c.playerId) && isTopOrderRole(c.primaryRole)
+    );
+    if (!nextTopOrder) break;
+    if (!tryAdd(nextTopOrder)) break;
+  }
+  while (
+    selected.filter((c) => c.primaryRole === "ALL_ROUNDER" || c.primaryRole === "BOWLING_ALL_ROUNDER")
+      .length < roleTargets.minAllRounders
+  ) {
+    const nextAR = baseCandidates.find(
+      (c) =>
+        !selectedIds.has(c.playerId) &&
+        (c.primaryRole === "ALL_ROUNDER" || c.primaryRole === "BOWLING_ALL_ROUNDER")
+    );
+    if (!nextAR) break;
+    if (!tryAdd(nextAR)) break;
   }
 
   for (const c of baseCandidates) {
@@ -261,12 +326,19 @@ export async function POST(
     .map((c) => ({ playerId: c.playerId, score: c.score, explanations: c.explanations }));
 
   const constraintLog = {
-    mode: "rules_v2",
+    mode: "rules_v3",
     selectedTeamId,
     squadSize: squad.length,
     availableCandidates: baseCandidates.length,
     selectedCount: predictedXI.length,
+    venueRoleTargets: roleTargets,
+    opponentBowlingDepth: oppBowlingDepth,
+    opponentTopOrderDepth: oppTopOrderDepth,
     bowlersInXI: selected.filter((c) => isBowlingRole(c.primaryRole)).length,
+    topOrderInXI: selected.filter((c) => isTopOrderRole(c.primaryRole)).length,
+    allRoundersInXI: selected.filter(
+      (c) => c.primaryRole === "ALL_ROUNDER" || c.primaryRole === "BOWLING_ALL_ROUNDER"
+    ).length,
     keepersInXI: selected.filter((c) => c.primaryRole === "WICKET_KEEPER" || c.fieldingRole === "WICKET_KEEPER").length,
     overseasInXI: selected.filter((c) => c.isOverseas).length,
   };
@@ -277,7 +349,7 @@ export async function POST(
       matchId: match.id,
       tenantId,
       triggeredByUserId: auth.userId,
-      modelVersion: "rules_v2",
+      modelVersion: "rules_v3",
       predictedXI,
       bench,
       constraintLog,
@@ -295,6 +367,8 @@ export async function POST(
         contextPressureBoost: 3,
         contextHomeBoost: 2,
         tossContextBoost: 4,
+        matchupVsOppBowlingDepth: 4,
+        matchupVsOppTopOrderDepth: 4,
       },
       collapseRisk: null,
       collapseFactors: null,
