@@ -64,11 +64,14 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added opposition depth matchup weights (bowling-heavy/top-order-heavy)
   - added venue/pitch profile role quotas (bowlers/top-order/all-rounders)
   - saved richer constraint logs and bumped model version to `rules_v3`
+- **Step 19 (done)**: Optional dashboard auto-redirect presets
+  - `/dashboard?auto=1` now redirects each role to a default landing page
+  - default targets: team workspace or matches (`TEAM_USER`), analytics (`ANALYST_USER`), matches (`LEAGUE_ADMIN`)
 
 ## Next up
-- **Dashboard**: optional role-based auto-redirect presets from `/dashboard`
 - **Analytics**: enrich collapse view with deeper factor drill-downs
 - **Prediction**: calibrate weights with match outcome backtesting
+- **Dashboard**: optional persisted redirect preference (cookie/profile setting)
 
 ## Local dev
 

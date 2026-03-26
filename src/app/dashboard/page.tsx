@@ -4,10 +4,15 @@ import { redirect } from "next/navigation";
 import { getAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ auto?: string }>;
+}) {
   const auth = await getAuth();
   if (!auth) redirect("/auth/login");
   const supabase = getSupabaseAdmin();
+  const sp = await searchParams;
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")
@@ -27,6 +32,17 @@ export default async function DashboardPage() {
         ? "Team user"
         : "Analyst";
 
+  const defaultLanding =
+    auth.role === "ANALYST_USER"
+      ? "/analytics/collapse"
+      : auth.role === "TEAM_USER"
+        ? (team ? `/teams/${team.id}` : "/matches")
+        : "/matches";
+
+  if (sp.auto === "1") {
+    redirect(defaultLanding);
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 p-6">
       <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -34,6 +50,12 @@ export default async function DashboardPage() {
           <div className="text-sm text-zinc-600">Signed in as</div>
           <div className="mt-1 font-medium">{auth.email}</div>
           <div className="mt-1 text-sm text-zinc-600">Role: {roleLabel}</div>
+          <div className="mt-3 text-xs text-zinc-600">
+            Quick landing preset:{" "}
+            <Link className="underline" href="/dashboard?auto=1">
+              jump directly to your default page
+            </Link>
+          </div>
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-sm">
