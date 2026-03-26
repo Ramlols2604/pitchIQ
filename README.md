@@ -120,9 +120,12 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added `MatchOutcome` SQL scaffold and labeling API endpoint
   - calibration diagnostics now includes labeled outcome coverage and Brier score
   - recent runs table now shows actual labeled result for quick audit
+- **Step 35 (done)**: Webhook receiver/provider adapter skeleton
+  - added receiver endpoint `POST /api/integrations/email-provider/scheduled-export`
+  - validates payload contract + optional HMAC signature before accepting
+  - documents adapter handoff point for plugging in a real email provider
 
 ## Next up
-- **Analytics**: integrate webhook receiver with real email provider workflow
 - **Preferences**: migrate fully from cookie fallback to DB-only after rollout
 
 ## Local dev
