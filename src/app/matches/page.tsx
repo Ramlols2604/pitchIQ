@@ -18,23 +18,16 @@ export default async function MatchesPage() {
   const auth = await getAuth();
   if (!auth) redirect("/auth/login");
 
-  if (!auth.tenantId) {
-    return (
-      <div className="min-h-screen bg-zinc-50 p-6">
-        <div className="mx-auto w-full max-w-3xl rounded-xl bg-white p-6 shadow-sm">
-          <div className="text-sm text-zinc-600">No tenant assigned.</div>
-        </div>
-      </div>
-    );
-  }
-
   const supabase = getSupabaseAdmin();
-  const { data: team } = await supabase
-    .from("Team")
-    .select("id")
-    .eq("tenantId", auth.tenantId)
-    .limit(1)
-    .maybeSingle<TeamRow>();
+  const { data: team } =
+    auth.tenantId && auth.role !== "ANALYST_USER"
+      ? await supabase
+          .from("Team")
+          .select("id")
+          .eq("tenantId", auth.tenantId)
+          .limit(1)
+          .maybeSingle<TeamRow>()
+      : { data: null as TeamRow | null };
   const { data: season } = await supabase
     .from("Season")
     .select("id,name")
@@ -43,7 +36,7 @@ export default async function MatchesPage() {
     .limit(1)
     .maybeSingle<SeasonRow>();
 
-  if (!team || !season) {
+  if (!season || (auth.role !== "LEAGUE_ADMIN" && !team)) {
     return (
       <div className="min-h-screen bg-zinc-50 p-6">
         <div className="mx-auto w-full max-w-3xl rounded-xl bg-white p-6 shadow-sm">
@@ -53,15 +46,17 @@ export default async function MatchesPage() {
     );
   }
 
-  const { data: matchesData } = await supabase
+  const query = supabase
     .from("Match")
     .select(
       "id,dateTime,teamAId,teamBId,venue:Venue!Match_venueId_fkey(name),teamA:Team!Match_teamAId_fkey(shortCode),teamB:Team!Match_teamBId_fkey(shortCode)"
     )
     .eq("seasonId", season.id)
-    .or(`teamAId.eq.${team.id},teamBId.eq.${team.id}`)
-    .order("dateTime", { ascending: true })
-    .returns<MatchRow[]>();
+    .order("dateTime", { ascending: true });
+  if (auth.role !== "LEAGUE_ADMIN" && team) {
+    query.or(`teamAId.eq.${team.id},teamBId.eq.${team.id}`);
+  }
+  const { data: matchesData } = await query.returns<MatchRow[]>();
   const matches = matchesData ?? [];
 
   return (
@@ -70,6 +65,13 @@ export default async function MatchesPage() {
         <div className="rounded-xl bg-white p-6 shadow-sm">
           <div className="text-sm text-zinc-600">Season</div>
           <div className="mt-1 font-medium">{season.name}</div>
+          {auth.role === "LEAGUE_ADMIN" ? (
+            <div className="mt-3">
+              <Link className="text-sm underline" href="/matches/create">
+                Create match
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-sm">

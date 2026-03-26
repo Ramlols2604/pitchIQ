@@ -54,11 +54,17 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added `/analytics/collapse` analyst view skeleton with filters
   - upgraded XI engine to `rules_v2` with match context/toss-aware scoring
   - hardened team write APIs with squad membership checks
+- **Step 16 (done)**: Role-based dashboard actions
+  - dashboard now shows role-specific quick actions for `TEAM_USER`, `ANALYST_USER`, and `LEAGUE_ADMIN`
+- **Step 17 (done)**: Admin match creation UI flow
+  - added `/matches/create` form for `LEAGUE_ADMIN`
+  - wired dashboard + matches page links to create flow
+  - create action redirects directly to match setup page
 
 ## Next up
-- **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
-- **Matches**: create match records (admin/ingest) so `/matches` lists something
 - **Prediction**: add opposition-specific matchup weights + role quotas by venue profile
+- **Dashboard**: optional role-based auto-redirect presets from `/dashboard`
+- **Analytics**: enrich collapse view with deeper factor drill-downs
 
 ## Local dev
 
