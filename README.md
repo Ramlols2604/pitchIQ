@@ -81,11 +81,17 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added row-level detail toggles for expanded factor context
   - added compact collapse-risk trend bars (latest 12 runs)
   - extracted analytics table into dedicated client component
+- **Step 24 (done)**: Profile-level dashboard preference controls
+  - added `/settings/profile` page to manage dashboard auto-redirect preference
+  - linked dashboard preference section to profile settings
+- **Step 25 (done)**: Analytics CSV export
+  - added `GET /api/analytics/collapse/export` for filtered run exports
+  - added Download CSV action on collapse analytics filters
 
 ## Next up
 - **Prediction**: tune calibration with real match outcomes
-- **Dashboard**: expose redirect preference in user profile settings
-- **Analytics**: add downloadable report/export options
+- **Analytics**: add richer report formats and scheduled exports
+- **Dashboard**: support per-role default landing override in profile
 
 ## Local dev
 

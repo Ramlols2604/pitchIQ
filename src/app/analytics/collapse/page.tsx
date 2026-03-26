@@ -110,9 +110,19 @@ export default async function CollapseAnalyticsPage({
               </select>
             </label>
             <div className="flex items-end">
-              <button className="rounded-lg bg-black px-3 py-2 text-sm text-white" type="submit">
-                Apply filters
-              </button>
+              <div className="flex items-center gap-2">
+                <button className="rounded-lg bg-black px-3 py-2 text-sm text-white" type="submit">
+                  Apply filters
+                </button>
+                {seasonId ? (
+                  <a
+                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                    href={`/api/analytics/collapse/export?seasonId=${encodeURIComponent(seasonId)}${teamId ? `&teamId=${encodeURIComponent(teamId)}` : ""}`}
+                  >
+                    Download CSV
+                  </a>
+                ) : null}
+              </div>
             </div>
           </form>
         </div>

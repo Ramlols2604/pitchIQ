@@ -63,6 +63,10 @@ export default async function DashboardPage({
             Persisted auto-redirect:{" "}
             {prefAuto ? "ON" : "OFF"}{" "}
             (<Link className="underline" href={`/api/dashboard/auto-landing?enabled=${prefAuto ? "0" : "1"}`}>{prefAuto ? "disable" : "enable"}</Link>)
+            {" "}•{" "}
+            <Link className="underline" href="/settings/profile">
+              profile settings
+            </Link>
             {prefAuto ? (
               <>
                 {" "}•{" "}
