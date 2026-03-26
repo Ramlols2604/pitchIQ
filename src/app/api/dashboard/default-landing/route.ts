@@ -4,8 +4,6 @@ import { requireAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { setUserPreference } from "@/lib/user-preferences";
 
-const COOKIE_NAME = "pitchiq_dashboard_default";
-
 export async function GET(req: NextRequest) {
   let auth;
   try {
@@ -38,16 +36,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid landing value for role" }, { status: 400 });
   }
   await setUserPreference(auth.userId, "dashboard.defaultLanding", value);
-
-  const res = NextResponse.redirect(new URL("/settings/profile", req.url));
-  res.cookies.set({
-    name: COOKIE_NAME,
-    value,
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
-  });
-  return res;
+  return NextResponse.redirect(new URL("/settings/profile", req.url));
 }

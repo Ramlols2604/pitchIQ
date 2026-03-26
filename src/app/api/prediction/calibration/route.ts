@@ -24,24 +24,5 @@ export async function GET(req: NextRequest) {
   const selected = PRESETS[preset] ?? PRESETS.default;
   await setUserPreference(auth.userId, "prediction.calibrationBlend", selected.blend);
   await setUserPreference(auth.userId, "prediction.calibrationRawShift", selected.rawShift);
-  const res = NextResponse.redirect(new URL("/settings/profile", req.url));
-  res.cookies.set({
-    name: "pitchiq_calib_blend",
-    value: selected.blend,
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
-  });
-  res.cookies.set({
-    name: "pitchiq_calib_raw_shift",
-    value: selected.rawShift,
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
-  });
-  return res;
+  return NextResponse.redirect(new URL("/settings/profile", req.url));
 }

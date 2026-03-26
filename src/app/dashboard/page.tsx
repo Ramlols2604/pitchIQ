@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAuth } from "@/lib/auth";
@@ -15,15 +14,12 @@ export default async function DashboardPage({
   if (!auth) redirect("/auth/login");
   const supabase = getSupabaseAdmin();
   const sp = await searchParams;
-  const cookieStore = await cookies();
   const prefs = await getUserPreferences(auth.userId, [
     "dashboard.autoRedirect",
     "dashboard.defaultLanding",
   ]);
-  const prefAuto =
-    (prefs.get("dashboard.autoRedirect") ?? cookieStore.get("pitchiq_dashboard_auto")?.value) === "1";
-  const prefDefault =
-    prefs.get("dashboard.defaultLanding") ?? cookieStore.get("pitchiq_dashboard_default")?.value ?? "";
+  const prefAuto = (prefs.get("dashboard.autoRedirect") ?? "0") === "1";
+  const prefDefault = prefs.get("dashboard.defaultLanding") ?? "";
 
   const team =
     auth.tenantId && (auth.role === "TEAM_USER" || auth.role === "LEAGUE_ADMIN")

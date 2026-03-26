@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/user-preferences";
 
 type MatchRow = {
   id: string;
@@ -219,10 +220,14 @@ export async function POST(
   }
 
   const supabase = getSupabaseAdmin();
-  const blendCookie = Number(req.cookies.get("pitchiq_calib_blend")?.value);
-  const rawShiftCookie = Number(req.cookies.get("pitchiq_calib_raw_shift")?.value);
-  const blendOverride = Number.isFinite(blendCookie) ? Math.max(0.5, Math.min(0.95, blendCookie)) : null;
-  const rawShift = Number.isFinite(rawShiftCookie) ? Math.max(-0.2, Math.min(0.2, rawShiftCookie)) : 0;
+  const prefs = await getUserPreferences(auth.userId, [
+    "prediction.calibrationBlend",
+    "prediction.calibrationRawShift",
+  ]);
+  const blendValue = Number(prefs.get("prediction.calibrationBlend") ?? "");
+  const rawShiftValue = Number(prefs.get("prediction.calibrationRawShift") ?? "");
+  const blendOverride = Number.isFinite(blendValue) ? Math.max(0.5, Math.min(0.95, blendValue)) : null;
+  const rawShift = Number.isFinite(rawShiftValue) ? Math.max(-0.2, Math.min(0.2, rawShiftValue)) : 0;
   const { matchId } = await params;
 
   const { data: match, error: matchErr } = await supabase

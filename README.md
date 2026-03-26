@@ -124,9 +124,14 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added receiver endpoint `POST /api/integrations/email-provider/scheduled-export`
   - validates payload contract + optional HMAC signature before accepting
   - documents adapter handoff point for plugging in a real email provider
+- **Step 36 (done)**: Preferences migration to DB-only
+  - removed cookie fallback reads from dashboard and profile settings pages
+  - preference mutation routes now persist only to `UserPreference`
+  - prediction calibration now reads per-user values from DB preferences
 
 ## Next up
-- **Preferences**: migrate fully from cookie fallback to DB-only after rollout
+- **Analytics**: replace receiver skeleton with real email provider integration
+- **Prediction**: add automated outcome backfill from match scorecards
 
 ## Local dev
 

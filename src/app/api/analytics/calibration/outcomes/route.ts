@@ -10,9 +10,8 @@ type OutcomePayload = {
 };
 
 export async function GET(req: NextRequest) {
-  let auth;
   try {
-    auth = await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
+    await requireAuth(req, { roles: ["LEAGUE_ADMIN", "ANALYST_USER"] });
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
