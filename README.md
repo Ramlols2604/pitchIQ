@@ -41,11 +41,15 @@ by open ball-by-ball datasets (Cricsheet-style) and a rules-based scoring engine
   - added `src/lib/supabase.ts`
   - rewired `GET /api/matches` to Supabase client
   - rewired `/matches` page reads to Supabase
+- **Step 13 (done)**: Predicted XI stub flow
+  - `POST /api/matches/:matchId/predicted-xi`
+  - `/matches/:matchId/predicted-xi`
+  - setup page button to generate and redirect
 
 ## Next up
 - **Dashboard**: role-based landing pages (`LEAGUE_ADMIN` / `TEAM_USER` / `ANALYST_USER`)
 - **Matches**: create match records (admin/ingest) so `/matches` lists something
-- **Prediction**: `POST /api/matches/:matchId/predicted-xi`
+- **Prediction**: replace stub selector with rules + constraints + explainers
 
 ## Local dev (DB + migrate + seed)
 

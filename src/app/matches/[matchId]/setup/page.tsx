@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 type ContextState = {
   pitchType: string;
@@ -24,6 +24,7 @@ const PRESSURE = ["NORMAL", "MUST_WIN", "KNOCKOUT", "DEAD_RUBBER"];
 const TOSS_DECISION = ["", "BAT", "FIELD"];
 
 export default function MatchSetupPage() {
+  const router = useRouter();
   const params = useParams<{ matchId: string }>();
   const matchId = params.matchId;
 
@@ -77,6 +78,35 @@ export default function MatchSetupPage() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onGenerateXI() {
+    setSaving(true);
+    setError(null);
+    try {
+      const saveRes = await fetch(`/api/matches/${matchId}/context`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!saveRes.ok) {
+        const data = (await saveRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "Save failed");
+      }
+
+      const runRes = await fetch(`/api/matches/${matchId}/predicted-xi`, {
+        method: "POST",
+      });
+      if (!runRes.ok) {
+        const data = (await runRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "Prediction failed");
+      }
+      router.push(`/matches/${matchId}/predicted-xi`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Prediction failed");
     } finally {
       setSaving(false);
     }
@@ -230,6 +260,14 @@ export default function MatchSetupPage() {
             type="button"
           >
             {saving ? "Saving..." : "Save context"}
+          </button>
+          <button
+            className="mt-4 ml-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-60"
+            onClick={onGenerateXI}
+            disabled={saving}
+            type="button"
+          >
+            {saving ? "Running..." : "Generate predicted XI"}
           </button>
         </div>
       </div>
